@@ -1,22 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-base="/">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rift — Command Center</title>
-    <meta name="description" content="Rift Dashboard — Advanced analytics and controls for your Discord server." />
+    <title>Rift Dashboard</title>
     <link rel="icon" type="image/png" href="https://i.postimg.cc/qR4jqJdK/cropped_circle_image.png" />
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <meta name="theme-color" content="#08090c" />
+    <script type="module" crossorigin src="/assets/index-5N6mGLCL.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C9HzN_8p.css">
   </head>
-  <body class="bg-[#08090c] text-white antialiased overflow-x-hidden">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body class="bg-[#08090c]">
     <script>
-      // SPA redirect handler for GitHub Pages
-      (function() {
+      (function () {
         var redirect = sessionStorage.redirect;
         delete sessionStorage.redirect;
         if (redirect && redirect !== location.pathname + location.search + location.hash) {
@@ -24,5 +19,6 @@
         }
       })();
     </script>
+    <div id="root"></div>
   </body>
 </html>
