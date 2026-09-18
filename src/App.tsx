@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { AppProvider } from "./lib/store";
 
-const Landing = lazy(() => import("./pages/Landing"));
 const Login = lazy(() => import("./pages/Login"));
 const Callback = lazy(() => import("./pages/Callback"));
 const Guilds = lazy(() => import("./pages/Guilds"));
@@ -35,7 +34,7 @@ export default function App() {
       <BrowserRouter basename="/">
         <Suspense fallback={<Loader />}>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            <Route path="/" element={<Navigate to="/guilds" replace />} />
             <Route path="/login" element={<Login />} />
             <Route path="/callback" element={<Callback />} />
             <Route path="/guilds" element={<Guilds />} />
