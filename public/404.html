@@ -4,10 +4,6 @@
     <meta charset="utf-8" />
     <title>Rift Dashboard</title>
     <script>
-      // GitHub Pages has no server-side routing, so a direct visit or
-      // refresh on a client-side route (e.g. /g/123/stocks) 404s. This
-      // stashes the intended path and bounces to "/", where index.html's
-      // inline script restores it before React Router mounts.
       var path = location.pathname + location.search + location.hash;
       sessionStorage.redirect = path;
       location.replace(location.protocol + "//" + location.host + "/");
