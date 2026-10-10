@@ -1,6 +1,7 @@
 /* Rift Music Room — lightweight server-music player.
  * Icons below are Lucide (ISC license, https://lucide.dev), inlined to avoid
  * an extra download and extra rendering work. Same icon set the dashboard uses.
+ * P.S. if you're reading this source: the aux cord salutes you.
  */
 "use strict";
 
@@ -17,6 +18,13 @@ const TICK_MS = 1000;
 const SEARCH_DEBOUNCE_MS = 350;
 const SEARCH_LIMIT = 8;
 const REQUEST_TIMEOUT_MS = 12000;
+// Shown in the tab title when you go look at other tabs. No hard feelings.
+const AWAY_TITLES = [
+  "brb? the aux misses you",
+  "come back, the beat dropped",
+  "paused\u2026 jk, the bot never sleeps",
+  "over here! the music's getting lonely",
+];
 
 const ICONS = {
   play: '<polygon points="6 3 20 12 6 21 6 3"/>',
@@ -75,7 +83,8 @@ function listFrom(payload, keys) {
   return [];
 }
 
-/* Accepts the backend's track shapes (Lavalink-style, plain, iTunes-mapped). */
+/* Accepts the backend's track shapes (Lavalink-style, plain, iTunes-mapped).
+ * The backend has commitment issues with schemas. We accept all of them. No judgment. */
 function normalizeTrack(track) {
   track = track || {};
   const info = track.info && typeof track.info === "object" ? track.info : {};
@@ -117,7 +126,7 @@ function voicePresenceFrom(payload, fallbackGuildId, fallbackGuildName) {
   };
 }
 
-/* Line-level LRC only. Word timings are parsed out; we highlight whole lines. */
+/* Line-level LRC only. Word timings got cut for performance. The words forgave us. */
 function parseLrc(input) {
   const rows = [];
   const stamp = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
@@ -202,7 +211,8 @@ async function request(path, options) {
   }
 }
 
-/* ---------- Lyrics: backend first, LRCLIB direct as fallback ---------- */
+/* ---------- Lyrics: backend first, LRCLIB direct as fallback ----------
+ * If the backend ghosts us, we go straight to the source. Independence. */
 
 const lyricsCache = new Map();
 
@@ -526,8 +536,27 @@ class MusicRoom {
       }
     }, { signal: s });
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && !this.disposed && Date.now() - this.lastStateAt > 5000) this.refreshState();
+      if (this.disposed) return;
+      if (document.hidden) {
+        document.title = AWAY_TITLES[Math.floor(Math.random() * AWAY_TITLES.length)];
+        return;
+      }
+      this.syncMediaMeta(); // restores the real title
+      if (Date.now() - this.lastStateAt > 5000) this.refreshState();
     }, { signal: s });
+    // Bonk counter: click the heading 5 times fast. You know you want to.
+    const heading = this.root.querySelector(".mr-head h1");
+    if (heading) {
+      heading.addEventListener("click", () => {
+        const now = Date.now();
+        this.bonks = now - (this.lastBonk || 0) < 1200 ? (this.bonks || 0) + 1 : 1;
+        this.lastBonk = now;
+        if (this.bonks >= 5) {
+          this.bonks = 0;
+          this.toast("bonk. that's the aux cord you're hitting.");
+        }
+      }, { signal: s });
+    }
   }
 
   bindAudio() {
@@ -543,6 +572,7 @@ class MusicRoom {
   /* ----- boot ----- */
 
   boot() {
+    console.log("music room loaded. aux cord secured. no neon was harmed (it was removed).");
     this.syncMediaMeta();
     this.pushMedia();
     this.refreshState();
@@ -656,6 +686,10 @@ class MusicRoom {
       this.lyricIndex = -1;
       this.renderLyrics();
       if (this.track) {
+        // No exceptions. Not even here. Especially not here.
+        if (/never gonna give you up/i.test(this.track.title || "")) {
+          this.toast("you know the rules. and so do i.");
+        }
         const wanted = key;
         if (this.lyricsCtrl) this.lyricsCtrl.abort();
         this.lyricsCtrl = new AbortController();
@@ -754,6 +788,7 @@ class MusicRoom {
   }
 
   /* ----- controls ----- */
+  // Big red button energy. Minus the red. Minus the button.
 
   async control(action, value, extra) {
     this.controlBusy = true;
@@ -974,6 +1009,13 @@ class MusicRoom {
     this.el.searchClear.hidden = !value;
     clearTimeout(this.searchTimer);
     const query = value.trim();
+    const eggs = window.__riftEggs;
+    if (eggs && query.toLowerCase() === "do a barrel roll") {
+      eggs.roll();
+      this.toast("do a barrel roll!");
+    } else if (eggs && query.toLowerCase() === "party") {
+      eggs.confetti();
+    }
     if (query.length < 2) {
       if (this.searchCtrl) this.searchCtrl.abort();
       this.searchResults = [];
@@ -1097,6 +1139,8 @@ class MusicRoom {
       this.volume = Number(t.value);
       this.el.volVal.textContent = `${t.value}%`;
       this.control("volume", Number(t.value));
+      if (this.volume === 69) this.toast("nice.");
+      else if (this.volume === 100) this.toast("MAXIMUM VOLUME. the neighbors have been notified.");
     }
   }
 
@@ -1335,6 +1379,7 @@ class MusicRoom {
   }
 
   /* ----- browser / OS media controls ----- */
+  // So your keyboard's dusty play button finally feels useful again.
 
   bindMediaSession() {
     if (!("mediaSession" in navigator)) return;
@@ -1429,6 +1474,8 @@ class MusicRoom {
   }
 
   /* ----- teardown ----- */
+  // Saying goodbye. Waving. Gone. (Timers cleared, nothing left behind but memories.)
+  // TODO: teach the bot to moonwalk (deprioritized indefinitely)
 
   dispose() {
     this.disposed = true;
@@ -1457,7 +1504,8 @@ class MusicRoom {
   }
 }
 
-/* ---------- server-list voice hint (throttled, cached) ---------- */
+/* ---------- server-list voice hint (throttled, cached) ----------
+ * We ask around quietly instead of shouting at every guild. Manners. */
 
 let pickerMount = null;
 let pickerTimer = 0;
@@ -1534,7 +1582,8 @@ document.addEventListener("click", (event) => {
   }
 });
 
-/* ---------- route sync ---------- */
+/* ---------- route sync ----------
+ * GPS for the music room. Recalculating\u2026 just kidding, it's instant. */
 
 let activeRoom = null;
 let activeMount = null;

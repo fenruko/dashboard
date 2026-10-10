@@ -1,5 +1,6 @@
 /* Rift Dash Plus — Last.fm deep stats + now-playing fix, stock charts,
- * and overview analytics. Dependency-free, mounts beside the React pages. */
+ * and overview analytics. Dependency-free, mounts beside the React pages.
+ * P.P.S. charts so smooth you could skate on them. please don't. */
 "use strict";
 
 const API_BASE = (window.RIFT_API_BASE || "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api").replace(/\/$/, "");
@@ -189,6 +190,7 @@ function text(parent, x, y, str, attrs) {
   return el;
 }
 
+/* Catmull-Rom smoothing. Fancy math so the lines look expensive. */
 function smoothPath(pts) {
   if (pts.length < 2) return "";
   if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`;
@@ -388,7 +390,7 @@ function groupBars(wrap, opts) {
   wrap.appendChild(legend);
 }
 
-/* Net bars (pos/neg around zero) + cumulative line. */
+/* Net bars (pos/neg around zero) + cumulative line. Bars go brr. Line goes whee. */
 function comboChart(wrap, opts) {
   const bars = (opts.bars || []).map(numOf);
   const line = (opts.line || []).map(numOf);
@@ -473,7 +475,7 @@ function comboChart(wrap, opts) {
   wrap.appendChild(legend);
 }
 
-/* Donut with HTML legend. segments: [{label, value, color}] */
+/* Donut with HTML legend. segments: [{label, value, color}]. Zero calories. Infinite insights. */
 function donut(wrap, opts) {
   const segs = (opts.segments || []).filter((s) => numOf(s.value) > 0);
   const total = segs.reduce((a, s) => a + numOf(s.value), 0);
@@ -601,7 +603,8 @@ const PERIODS = [
   ["ALL", "overall"],
 ];
 
-/* Unwrap every now-playing shape seen in the wild. Returns {track, artist, image, live, staleText} or null. */
+/* Unwrap every now-playing shape seen in the wild. Returns {track, artist, image, live, staleText} or null.
+ * The backend wraps responses like they're fragile. They are not fragile. */
 function parseNowPlaying(payload) {
   if (!payload || typeof payload !== "object") return null;
   // Last.fm native recenttracks shape
@@ -789,7 +792,7 @@ class LastFmPlus extends PlusModule {
     const artists = numOf(p.artist_count ?? p.artists);
     const tracks = numOf(p.track_count ?? p.tracks);
     const tiles = [];
-    if (scrobbles) tiles.push(tile(fmtInt(scrobbles), "Scrobbles"));
+    if (scrobbles) tiles.push(tile(fmtInt(scrobbles), "Scrobbles", scrobbles === 6969 || scrobbles === 69 ? "nice." : ""));
     if (artists) tiles.push(tile(fmtInt(artists), "Artists"));
     if (tracks) tiles.push(tile(fmtInt(tracks), "Tracks"));
     const reg = Number(p.registered ?? p.registered_unix ?? p.member_since ?? 0);
@@ -938,6 +941,7 @@ class LastFmPlus extends PlusModule {
 
 /* ================= Stocks ================= */
 
+// localStorage: the diary where stock prices confess their secrets.
 const HIST_KEY = "rift_stock_hist_v1";
 const HIST_MAX_POINTS = 720;
 const HIST_MAX_AGE = 60 * 86400000;
@@ -1067,6 +1071,13 @@ class StocksPlus extends PlusModule {
       if (e.target.matches('[data-dp="filter"]')) {
         this.filter = e.target.value;
         this.renderTable();
+        const eggs = window.__riftEggs;
+        if (eggs) {
+          const q = this.filter.trim().toLowerCase();
+          if (q === "stonks") eggs.toast("stonks.");
+          else if (q === "moon" || q === "to the moon") eggs.toast("to the moon. (source: trust me)");
+          else if (q === "lambo") eggs.toast("when lambo");
+        }
       }
     });
     this.on(this.section, "change", (e) => {
@@ -1336,7 +1347,7 @@ class OverviewPlus extends PlusModule {
           <div><h3>Activity deep dive</h3><p>${esc(a.guild_name || "This server")} · last ${dates.length} days · <span class="dp-updated">7-day trend vs prior 7 days</span></p></div>
         </div>
         <div class="dp-grid-4">
-          ${tile(signed(tot(net)), "Net growth", trend(net))}
+          ${tile(signed(tot(net)), "Net growth", trend(net) + (tot(net) === 69 ? ' \u00b7 <span>nice.</span>' : ""))}
           ${tile(fmtInt(tot(joins)), "Joins", `${avg(joins).toFixed(1)}/day · ${trend(joins)}`)}
           ${tile(fmtInt(tot(leaves)), "Leaves", `${avg(leaves).toFixed(1)}/day · ${trend(leaves)}`)}
           ${tile(compact(tot(messages)), "Messages", `${compact(avg(messages))}/day · ${trend(messages)}`)}
@@ -1449,6 +1460,7 @@ function sync() {
 }
 
 function install() {
+  console.log("dash plus loaded. charts charts charts.");
   const origPush = history.pushState;
   history.pushState = function (...args) {
     const result = origPush.apply(this, args);
