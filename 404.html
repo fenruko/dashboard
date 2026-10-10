@@ -2,12 +2,11 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Rift Dashboard</title>
+    <title>Rift Audio</title>
     <script>
       // GitHub Pages has no server-side routing, so a direct visit or
-      // refresh on a client-side route (e.g. /g/123/stocks) 404s. This
-      // stashes the intended path and bounces to "/", where index.html's
-      // inline script restores it before React Router mounts.
+      // refresh on a player route (e.g. /g/123/music) 404s. This stashes
+      // the intended path and bounces to "/", where index.html restores it.
       var path = location.pathname + location.search + location.hash;
       sessionStorage.redirect = path;
       location.replace(location.protocol + "//" + location.host + "/");
