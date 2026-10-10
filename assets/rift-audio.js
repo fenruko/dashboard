@@ -147,7 +147,9 @@ const state = {
   repeat: savedPreferences.repeat || "off",
   activeTab: savedPreferences.activeTab || "for-you",
   sideTab: savedPreferences.sideTab || "queue",
-  theme: savedPreferences.theme || "aurora",
+  // Keep the original Rift Dashboard cyan theme as the default. Older local
+  // preferences from the first Audio preview are migrated back to Rift.
+  theme: savedPreferences.theme && savedPreferences.theme !== "aurora" ? savedPreferences.theme : "rift",
   density: savedPreferences.density || "cozy",
   reducedMotion: Boolean(savedPreferences.reducedMotion),
   visualizer: savedPreferences.visualizer !== false,
@@ -337,7 +339,7 @@ function navMarkup() {
   const collection = [["clock", "History", "history"], ["heart", "Liked songs", "liked"]];
   const item = ([iconName, label, key]) => `<button class="nav-item ${key === "home" ? "active" : ""}" type="button" data-action="nav" data-nav="${key}">${icon(iconName)}<span>${label}</span></button>`;
   return `<aside class="sidebar" aria-label="Music navigation">
-    <a class="brand" href="/" aria-label="Rift Audio home"><span class="brand-mark">${icon("mark")}</span><span class="brand-copy"><span class="brand-name">RIFT</span><span class="brand-sub">AUDIO SPACE</span></span></a>
+    <a class="brand" href="/" aria-label="Rift Audio home"><span class="brand-mark">R</span><span class="brand-copy"><span class="brand-name">RIFT</span><span class="brand-sub">COMMAND CENTER</span></span></a>
     <button class="server-switcher" type="button" data-action="open-server" aria-label="Choose Discord server">
       <span class="server-logo">${escapeHtml(state.server.name.charAt(0))}</span>
       <span class="server-switch-copy"><strong>${escapeHtml(state.server.name)}</strong><span>${state.apiBase ? escapeHtml(state.server.channel) : "Choose a server"}</span></span>${icon("chevron")}
@@ -349,14 +351,17 @@ function navMarkup() {
 }
 
 function heroMarkup() {
-  return `<section class="hero" aria-labelledby="hero-title">
+  return `<div class="page-heading"><div><h1>Music</h1><p>Player, queue, sync, and listening intelligence for your server.</p></div><span class="dashboard-badge"><i></i>${state.apiBase ? "24/7 · Active" : "Local · Ready"}</span></div>
+  <section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
-      <div class="overline"><i class="pulse"></i> Your listening space</div>
-      <h1 id="hero-title">Made for the <span class="accent-text">way you listen.</span></h1>
-      <p>Queue with intention, tune every detail, and keep your browser and Discord bot listening from the same page.</p>
+      <div class="overline"><i class="pulse"></i> Now playing</div>
+      <h2 id="hero-title">${escapeHtml(state.current.title)}</h2>
+      <p class="hero-artist">${escapeHtml(state.current.artist)} <span>·</span> ${escapeHtml(state.current.album)}</p>
+      <p class="hero-description">A focused player surface that stays in step with Rift Bot, your queue, and the room you choose.</p>
       <div class="hero-actions">
-        <button class="button button-accent" type="button" data-action="open-mix">${icon("spark")} Build my Signal Mix</button>
-        <button class="button button-soft" type="button" data-action="open-server">${icon("mic")} ${state.apiBase ? "Join voice" : "Choose a server"}</button>
+        <button class="button button-primary" type="button" data-action="play-toggle">${state.playing ? icon("pause") : icon("play")} ${state.playing ? "Pause" : "Play"}</button>
+        <button class="button button-secondary" type="button" data-action="open-mix">${icon("spark")} Signal Mix</button>
+        <button class="button button-secondary" type="button" data-action="open-server">${icon("mic")} ${state.apiBase ? "Voice channel" : "Choose server"}</button>
       </div>
       <div class="stats-row">
         <div class="stat-card"><span>This week</span><strong>14h 38m</strong><small>↗ 18% more</small></div>
@@ -487,7 +492,7 @@ function searchResultsMarkup(results) {
 }
 
 function settingsModal() {
-  const themes = ["aurora", "tide", "ember", "rose"];
+  const themes = ["rift", "tide", "ember", "rose"];
   return `<div class="modal-layer" data-modal-layer><section class="modal small" role="dialog" aria-modal="true" aria-label="Customize Rift Audio"><header class="modal-head"><div><h2>Shape your space</h2><p>These controls stay on this device and cost nothing while the player is idle.</p></div><button class="modal-close" type="button" data-action="close-modal" aria-label="Close settings">${icon("x")}</button></header><div class="settings-body"><div class="setting-group"><span class="setting-label">Accent theme</span><div class="theme-picks">${themes.map((theme) => `<button type="button" class="theme-pick ${state.theme === theme ? "active" : ""}" data-action="theme" data-theme-pick="${theme}" aria-label="Use ${theme} theme"><i></i></button>`).join("")}</div></div><div class="setting-group"><span class="setting-label">Density</span><div class="segmented"><button type="button" class="${state.density === "cozy" ? "active" : ""}" data-action="density" data-density="cozy">Cozy</button><button type="button" class="${state.density === "compact" ? "active" : ""}" data-action="density" data-density="compact">Compact</button></div></div><div class="setting-group"><div class="setting-line"><div><strong>Motion visuals</strong><span>Keep the tiny player equalizer and ambient movement on.</span></div><button type="button" class="switch ${state.visualizer ? "on" : ""}" data-action="toggle-pref" data-pref="visualizer" aria-label="Toggle motion visuals"><i></i></button></div><div class="setting-line"><div><strong>Reduce motion</strong><span>Use instant state changes and stop decorative animation.</span></div><button type="button" class="switch ${state.reducedMotion ? "on" : ""}" data-action="toggle-pref" data-pref="reducedMotion" aria-label="Toggle reduced motion"><i></i></button></div></div><div class="setting-group"><span class="setting-label">Rift Bot API</span><div class="api-config"><input id="api-base-input" type="url" placeholder="https://your-api.example.com/api" value="${escapeHtml(state.apiBase)}" aria-label="Rift Bot API base URL"><button type="button" data-action="save-api">Save</button></div><p class="api-help">Uses your existing dashboard token when available. Leave blank for local demo mode.</p></div></div></section></div>`;
 }
 
