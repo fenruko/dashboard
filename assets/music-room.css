@@ -145,7 +145,8 @@
   background: var(--mr-accent); color: var(--mr-accent-ink); cursor: pointer;
 }
 .mr-play:hover { background: #f2ecdd; }
-.mr-play svg { width: 17px; height: 17px; }
+.mr-play svg { display: block; width: 17px; height: 17px; fill: currentColor; stroke: none; color: var(--mr-accent-ink, #161511); }
+.mr-play svg * { fill: currentColor; stroke: none; }
 .mr-play:disabled { opacity: 0.4; cursor: default; }
 .mr-vol { display: flex; align-items: center; gap: 8px; max-width: 210px; margin-top: 10px; color: var(--mr-faint); }
 .mr-vol svg { width: 14px; height: 14px; }

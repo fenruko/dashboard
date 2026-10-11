@@ -527,6 +527,9 @@ class MusicRoom {
     this.root.addEventListener("input", (e) => this.onInput(e), { signal: s });
     this.root.addEventListener("change", (e) => this.onChange(e), { signal: s });
     this.el.modalForm.addEventListener("submit", (e) => { e.preventDefault(); this.savePlaylist(); }, { signal: s });
+    const holdLyrics = () => { this.lyricsUserScrollUntil = Date.now() + 4000; };
+    ["wheel", "touchmove", "pointerdown"].forEach((evt) =>
+      this.el.lyr.addEventListener(evt, holdLyrics, { signal: s, passive: true }));
     document.addEventListener("keydown", (e) => {
       if (this.disposed) return;
       if (e.key === "Escape" && !this.el.modalBg.hidden) this.closeModal();
@@ -642,6 +645,7 @@ class MusicRoom {
     const next = hasTrack ? normalizeTrack(raw) : null;
     const trackChanged = (next?.id || "") + (next?.title || "") !== (this.track?.id || "") + (this.track?.title || "");
 
+    const wasPaused = this.paused;
     this.track = next;
     this.queueList = listFrom(state, ["queue", "tracks_in_queue", "up_next"]).map(normalizeTrack);
     this.paused = !next || Boolean(state.paused ?? state.is_paused ?? false);
@@ -1372,10 +1376,23 @@ class MusicRoom {
     const active = this.lineEls[index];
     if (active) {
       active.classList.add("on");
-      const box = this.el.lyr;
-      const top = active.offsetTop - box.clientHeight * 0.4;
-      box.scrollTo({ top: Math.max(0, top), behavior: "auto" });
+      this.scrollLyricsTo(active);
     }
+  }
+
+  // Scroll only the lyrics box, measured against the box itself (offsetTop is
+  // relative to the nearest positioned ancestor, which is not the box).
+  scrollLyricsTo(line) {
+    const box = this.el.lyr;
+    if (!box || !line) return;
+    // Don't fight the user while they're scrolling the lyrics by hand.
+    if (Date.now() < (this.lyricsUserScrollUntil || 0)) return;
+    const boxRect = box.getBoundingClientRect();
+    const lineRect = line.getBoundingClientRect();
+    const delta = (lineRect.top - boxRect.top) - box.clientHeight * 0.4;
+    const top = Math.max(0, box.scrollTop + delta);
+    if (Math.abs(top - box.scrollTop) < 2) return;
+    box.scrollTo({ top, behavior: "smooth" });
   }
 
   /* ----- browser / OS media controls ----- */
