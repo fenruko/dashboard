@@ -1462,8 +1462,42 @@ class MusicRoom {
     } catch { /* older browsers */ }
   }
 
+  /* Browsers only show their media widget (title, artwork, controls, timestamp)
+   * while the page is playing real audio. The bot plays on the server, so we
+   * loop an inaudible 10s clip while a track is active. This is only what
+   * convinces the browser to show the Media Session; no sound comes from it. */
+  ensureKeepAlive() {
+    if (!("mediaSession" in navigator)) return;
+    const wanted = !!this.track && !this.previewTrack;
+    if (!this.keepAlive) {
+      if (!wanted) return;
+      const rate = 8000, seconds = 10, n = rate * seconds;
+      const buf = new ArrayBuffer(44 + n);
+      const v = new DataView(buf);
+      const str = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+      str(0, "RIFF"); v.setUint32(4, 36 + n, true); str(8, "WAVE"); str(12, "fmt ");
+      v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+      v.setUint32(24, rate, true); v.setUint32(28, rate, true); v.setUint16(32, 1, true);
+      v.setUint16(34, 8, true); str(36, "data"); v.setUint32(40, n, true);
+      new Uint8Array(buf, 44).fill(128); // 8-bit PCM silence
+      const a = new Audio();
+      a.src = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+      a.loop = true;
+      a.setAttribute("aria-hidden", "true");
+      this.keepAlive = a;
+      // Autoplay needs a user gesture; retry on the first click/key if blocked.
+      const retry = () => this.ensureKeepAlive();
+      document.addEventListener("pointerdown", retry, { signal: this.ac.signal });
+      document.addEventListener("keydown", retry, { signal: this.ac.signal });
+    }
+    const a = this.keepAlive;
+    if (wanted) { if (a.paused) a.play().catch(() => { /* needs a click first */ }); }
+    else if (!a.paused) a.pause();
+  }
+
   pushMedia() {
     if (!("mediaSession" in navigator)) return;
+    this.ensureKeepAlive();
     try {
       const playing = this.previewTrack
         ? !!this.el.audio && !this.el.audio.paused
@@ -1510,6 +1544,14 @@ class MusicRoom {
       this.el.audio.load();
     } catch { /* already gone */ }
     document.title = this.titleBefore;
+    try {
+      if (this.keepAlive) {
+        this.keepAlive.pause();
+        URL.revokeObjectURL(this.keepAlive.src);
+        this.keepAlive.removeAttribute("src");
+        this.keepAlive = null;
+      }
+    } catch { /* already gone */ }
     try {
       if ("mediaSession" in navigator) {
         ["play", "pause", "previoustrack", "nexttrack", "stop", "seekto", "seekbackward", "seekforward"]
