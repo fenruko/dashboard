@@ -168,7 +168,11 @@ function currentUser() {
     } catch {
       return null;
     }
-  })();
+  })().then((u) => {
+    // Don't cache a miss: the header avatar may simply not be rendered yet.
+    if (!u) userPromise = null;
+    return u;
+  });
   return userPromise;
 }
 
@@ -1019,23 +1023,51 @@ class StocksPlus extends PlusModule {
     this.render();
     this.every(async () => {
       try {
-        const m = await request("/stocks/market", { signal: this.signal });
+        const user = await currentUser();
+        const [m, p, l] = await Promise.all([
+          request("/stocks/market", { signal: this.signal }).catch(() => null),
+          user ? request(`/stocks/portfolio/${encodeURIComponent(user.id)}`, { signal: this.signal }).catch(() => null) : null,
+          request("/stocks/leaderboard", { signal: this.signal }).catch(() => null),
+        ]);
+        if (this.disposed) return;
         const market = listFrom(m, ["stocks", "market"]);
-        if (market.length && !this.disposed) {
+        if (market.length) {
           this.market = market.map((s) => ({ symbol: String(s.symbol || ""), name: textOf(s.name), price: numOf(s.price) })).filter((s) => s.symbol);
           this.snapshot(this.market);
-          this.updateAll();
         }
+        // Keep the last good portfolio/leaderboard if a poll fails.
+        if (p) this.portfolio = p;
+        const leaders = listFrom(l, ["leaderboard", "traders", "users"]);
+        if (leaders.length) this.leaders = leaders;
+        if (!this.symbol && this.market.length) this.symbol = this.market[0].symbol;
+        // Shell may be missing if the first load found nothing.
+        if (!this.section.querySelector('[data-dp="syms"]')) this.render();
+        else this.updateAll();
       } catch { /* keep last snapshot on failure */ }
     }, 30000);
   }
 
+  // The first requests of a page load can fail while the browser resolves the
+  // local-network permission; retry a few times instead of giving up for good.
+  async fetchRetry(path, tries = 4) {
+    for (let i = 0; i < tries; i++) {
+      if (this.disposed) return null;
+      try { return await request(path, { signal: this.signal }); } catch { /* retry */ }
+      await new Promise((r) => setTimeout(r, 700 * (i + 1)));
+    }
+    return null;
+  }
+
   async loadAll() {
-    const user = await currentUser();
+    let user = await currentUser();
+    for (let i = 0; !user && i < 8 && !this.disposed; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      user = await currentUser();
+    }
     const [m, p, l] = await Promise.all([
-      request("/stocks/market", { signal: this.signal }).catch(() => null),
-      user ? request(`/stocks/portfolio/${encodeURIComponent(user.id)}`, { signal: this.signal }).catch(() => null) : null,
-      request("/stocks/leaderboard", { signal: this.signal }).catch(() => null),
+      this.fetchRetry("/stocks/market"),
+      user ? this.fetchRetry(`/stocks/portfolio/${encodeURIComponent(user.id)}`) : null,
+      this.fetchRetry("/stocks/leaderboard"),
     ]);
     if (this.disposed) return;
     this.market = listFrom(m, ["stocks", "market"]).map((s) => ({
