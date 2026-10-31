@@ -163,6 +163,13 @@ export function createHarness({ backend = createMockBackend(), token = "demo-tok
     refresh: async () => {},
     logout: () => {},
     markUnauthorized: () => {},
+    getToken: () => authState.token,
+    beginLogin: async () => {},
+    loginWithToken: async (nextToken) => {
+      Object.assign(authState, { status: "ready", token: nextToken, user, guilds: [guild] });
+      authListeners.forEach((fn) => fn(authState));
+      return authState;
+    },
   };
   const config = { apiBase: API_BASE, apiBaseFallbacks: [], demo: true, siteName: "Rift", discordClientId: "1329184069426348052" };
 

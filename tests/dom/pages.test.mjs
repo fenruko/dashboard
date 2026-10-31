@@ -82,6 +82,11 @@ test("public pages render without a session", async () => {
   assert.match(document.body.textContent, /Explore the demo/);
   assert.equal(harness.navigations.length, 0, "login does not auto-redirect a signed-out visitor");
 
+  clickText("Explore the demo (no Discord login)");
+  await flush(3);
+  assert.equal(harness.auth.get().token, "demo-token", "demo login stores the demo token");
+  assert.ok(harness.navigations.includes("/guilds"), "demo login lands on the server list");
+
   for (const pageName of ["bugreport", "appeals", "verify"]) {
     freshRoot();
     const { cleanup } = await mountPage(`assets/app/pages/${pageName}.js`, harness, {
