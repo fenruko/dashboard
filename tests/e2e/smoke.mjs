@@ -1,6 +1,6 @@
 /* End-to-end smoke test for the static site + API + websockets.
  *
- * Starts the real dev server and standalone mock API as child processes,
+ * Starts the real dev server and standalone demo API as child processes,
  * exercises the same HTTP/WS surfaces a browser would, and tears everything
  * down. Run with `npm run test:e2e`.
  */
@@ -11,9 +11,9 @@ import { once } from "node:events";
 import WebSocket from "ws";
 
 const DEV_PORT = Number(process.env.E2E_PORT || 4175);
-const MOCK_PORT = Number(process.env.E2E_MOCK_PORT || 8799);
+const DEMO_PORT = Number(process.env.E2E_DEMO_PORT || 8799);
 const base = `http://127.0.0.1:${DEV_PORT}`;
-const mockBase = `http://127.0.0.1:${MOCK_PORT}`;
+const demoBase = `http://127.0.0.1:${DEMO_PORT}`;
 const children = [];
 
 function start(command, env, name) {
@@ -80,10 +80,10 @@ async function json(url, options = {}) {
 const auth = { Authorization: "Bearer demo-token" };
 
 try {
-  start(["tools/mock-server.mjs"], { MOCK_PORT: String(MOCK_PORT) }, "mock");
+  start(["tools/demo-server.mjs"], { DEMO_PORT: String(DEMO_PORT) }, "demo");
   start(["tools/dev-server.mjs"], { PORT: String(DEV_PORT) }, "dev");
-  await waitForHttp(`${base}/__mock/health`);
-  await waitForHttp(`${mockBase}/health`);
+  await waitForHttp(`${base}/__demo/health`);
+  await waitForHttp(`${demoBase}/health`);
 
   /* ------------------------------ static ------------------------------ */
 
@@ -146,7 +146,7 @@ try {
 
   /* ---------------------------- standalone API ------------------------ */
 
-  const standalone = await json(`${mockBase}/api/stats`, { headers: auth });
+  const standalone = await json(`${demoBase}/api/stats`, { headers: auth });
   assert.equal(standalone.status, 200);
   assert.equal(typeof standalone.payload.users, "number");
 
@@ -159,8 +159,8 @@ try {
   const devVc = await waitForSocket(`ws://127.0.0.1:${DEV_PORT}/ws/vc?access_token=demo-token`, "call_state");
   assert.equal(devVc.data, null, "no call is active yet");
 
-  const mockStats = await waitForSocket(`ws://127.0.0.1:${MOCK_PORT}/ws?access_token=demo-token`, "stats");
-  assert.ok(mockStats.data.guilds >= 1);
+  const demoStats = await waitForSocket(`ws://127.0.0.1:${DEMO_PORT}/ws?access_token=demo-token`, "stats");
+  assert.ok(demoStats.data.guilds >= 1);
 
   console.log("\nE2E smoke passed: static site, config, API, settings write, 403 guard, CORS and websockets.\n");
 } finally {

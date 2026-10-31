@@ -1,4 +1,4 @@
-/* Mounts every page against the mock API and drives the important flows.
+/* Mounts every page against the demo API and drives the important flows.
  * These are not screenshot tests: they assert that the DOM the user actually
  * sees contains real data, that buttons mutate backend state, and that no
  * `null` / `[object Object]` placeholder text leaks into the UI. */

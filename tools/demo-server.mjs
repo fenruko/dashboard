@@ -1,19 +1,19 @@
-/* Standalone mock API server.
+/* Standalone demo API server.
  *
  * Useful when the dashboard is served elsewhere (GitHub Pages, a preview host,
- * a file server) and you want it pointed at the mock:
- *   npm run mock            → http://127.0.0.1:8788/api
+ * a file server) and you want it pointed at the demo:
+ *   npm run demo            → http://127.0.0.1:8788/api
  *   open the dashboard with ?api=http://<host>:8788/api&demo=1
  *
  * It is intentionally the same backend module the dev server and tests use. */
 
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
-import { createMockBackend, DEMO_USER_ID } from "./mock-backend.mjs";
+import { createDemoBackend, DEMO_USER_ID } from "./demo-backend.mjs";
 
-const PORT = Number(process.env.MOCK_PORT || 8788);
+const PORT = Number(process.env.DEMO_PORT || 8788);
 const HOST = process.env.HOST || "0.0.0.0";
-const backend = createMockBackend({ latency: Number(process.env.MOCK_LATENCY || 30) });
+const backend = createDemoBackend({ latency: Number(process.env.DEMO_LATENCY || 30) });
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -49,7 +49,7 @@ const server = createServer(async (req, res) => {
   }
   if (url.pathname === "/" || url.pathname === "/health") {
     res.writeHead(200, { ...cors, "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: true, service: "rift-dashboard-mock", demo_user: DEMO_USER_ID, metrics: backend.metrics }));
+    res.end(JSON.stringify({ ok: true, service: "rift-dashboard-demo", demo_user: DEMO_USER_ID, metrics: backend.metrics }));
     return;
   }
   if (!url.pathname.startsWith("/api/")) {
@@ -76,9 +76,9 @@ const server = createServer(async (req, res) => {
     res.writeHead(result.status, { ...cors, "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
     res.end(text);
   } catch (error) {
-    console.error("[mock-server]", error);
+    console.error("[demo-server]", error);
     res.writeHead(500, { ...cors, "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: error?.message || "Internal mock error" }));
+    res.end(JSON.stringify({ error: error?.message || "Internal demo error" }));
   }
 });
 
@@ -124,5 +124,5 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Rift mock API → http://${HOST}:${PORT}/api (demo user ${DEMO_USER_ID})`);
+  console.log(`Rift demo API → http://${HOST}:${PORT}/api (demo user ${DEMO_USER_ID})`);
 });

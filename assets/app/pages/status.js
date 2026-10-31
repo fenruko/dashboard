@@ -151,7 +151,7 @@ export async function mountPage(ctx) {
               h("div", { class: "row row--between" }, h("span", { class: "muted small" }, "Navigator"), badge({ label: navigator.onLine ? "online" : "offline", tone: navigator.onLine ? "success" : "danger" }))
             ),
             config.isLocal
-              ? callout({ tone: "info", title: "Local API", children: "You're pointed at a localhost/mock backend. Demo data is expected." })
+              ? callout({ tone: "info", title: "Local API", children: "You're pointed at a localhost/demo backend. Demo data is expected." })
               : callout({ tone: "info", title: "Automatic retries", children: "GETs retry 3× with jittered backoff; mutations never retry silently. A 401 raises a session-expired banner instead of logging you out mid-edit." }),
           ],
         })

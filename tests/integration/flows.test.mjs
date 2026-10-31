@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DEMO_GUILDS, DEMO_USER_ID, createMockBackend } from "../../tools/mock-backend.mjs";
+import { DEMO_GUILDS, DEMO_USER_ID, createDemoBackend } from "../../tools/demo-backend.mjs";
 import { createApiClient } from "../../assets/app/core/api.js";
 import { createEndpoints } from "../../assets/app/data/endpoints.js";
 import { createFetchAdapter } from "../dom/harness.mjs";
@@ -11,7 +11,7 @@ const GUILD_B = DEMO_GUILDS[1].id;
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 function setup({ token = "demo-token" } = {}) {
-  const backend = createMockBackend({ latency: 0, seed: 4242 });
+  const backend = createDemoBackend({ latency: 0, seed: 4242 });
   const adapter = createFetchAdapter(backend);
   const api = createApiClient({
     baseUrl: "https://api.test/api",

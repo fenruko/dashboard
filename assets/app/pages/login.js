@@ -36,7 +36,7 @@ export async function mountPage(ctx) {
         { class: "auth-sub" },
         session.status === "expired"
           ? "Discord tokens last about seven days. Sign in again — your bot settings are untouched."
-          : "Manage your servers with the same database the bot uses. No cached mock data, no waiting for a Discord command to apply a setting."
+          : "Manage your servers with the same database the bot uses. No cached placeholder data, no waiting for a Discord command to apply a setting."
       )
     ),
     (session.error || ctx.error) &&
@@ -67,7 +67,7 @@ export async function mountPage(ctx) {
               await auth.loginWithToken("demo-token", { expiresInSeconds: 86_400 });
               router.navigate("/guilds");
             } catch (err) {
-              toast.error(err?.message || "Demo login failed. Is the mock API running?");
+              toast.error(err?.message || "Demo login failed. Is the demo API running?");
             }
           },
         })

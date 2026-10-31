@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DEMO_GUILDS, DEMO_USER, DEMO_USER_ID, createMockBackend } from "../../tools/mock-backend.mjs";
+import { DEMO_GUILDS, DEMO_USER, DEMO_USER_ID, createDemoBackend } from "../../tools/demo-backend.mjs";
 import { createApiClient } from "../../assets/app/core/api.js";
 import { createEndpoints } from "../../assets/app/data/endpoints.js";
 import { createFetchAdapter } from "../dom/harness.mjs";
 
 const GUILD = DEMO_GUILDS[0].id;
 
-function setup({ token = "demo-token", backend = createMockBackend({ latency: 0 }) } = {}) {
+function setup({ token = "demo-token", backend = createDemoBackend({ latency: 0 }) } = {}) {
   const calls = [];
   const adapter = createFetchAdapter(backend);
   const api = createApiClient({

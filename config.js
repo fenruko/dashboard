@@ -7,14 +7,16 @@
  * apiBase            The bot's Quart API root, including "/api".
  * apiBaseFallbacks   Tried in order when the primary host is unreachable
  *                    (e.g. Tailscale host vs. public tunnel).
- * demo               Force demo mode (in-memory mock backend, no Discord login).
+ * demo               Optional local demo mode (no Discord login). Keep false in production.
  * discordClientId    OAuth2 application id used for the implicit grant.
  * invitePermissions  Permission bitfield used by the "Add Rift" button.
  */
 window.RIFT_CONFIG = {
-  // apiBase: "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api",
-  // apiBaseFallbacks: ["https://dash.rift.cool/api"],
-  // demo: false,
-  // discordClientId: "1329184069426348052",
-  // invitePermissions: "5076723787231222",
+  // The live Rift bot API. Every page reads and writes this host directly.
+  apiBase: "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api",
+  apiBaseFallbacks: [],
+  demo: false,
+  discordClientId: "1329184069426348052",
+  invitePermissions: "5076723787231222",
+  siteName: "Rift",
 };

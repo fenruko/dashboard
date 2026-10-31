@@ -140,7 +140,7 @@ test("every endpoint helper maps to a real bot route", async () => {
 test("no dashboard route is silently absent from the manifest (allowlisting demo-only)", () => {
   const demoOnly = ["/api/demo/me", "/api/demo/guilds"];
   for (const path of demoOnly) {
-    assert.equal(manifestMatch(path, "GET"), false, `${path} is a dev-mock endpoint and must not be presented as bot API`);
+    assert.equal(manifestMatch(path, "GET"), false, `${path} is a demo endpoint and must not be presented as bot API`);
   }
   const dashboardPaths = ["/api/stats", "/api/analytics/1", "/api/mod/logs/1", "/api/music/state/1", "/api/stocks/market", "/api/vc/call", "/api/appeals/thread/abc", "/api/bugreports/submit"];
   for (const path of dashboardPaths) {

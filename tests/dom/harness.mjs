@@ -1,9 +1,9 @@
-/* jsdom + mock-backend harness for mounting pages exactly like app.js does. */
+/* jsdom + demo-backend harness for mounting pages exactly like app.js does. */
 
 import { JSDOM } from "jsdom";
 import { pathToFileURL } from "node:url";
 import { resolve as resolvePath } from "node:path";
-import { createMockBackend, DEMO_USER, DEMO_GUILDS } from "../../tools/mock-backend.mjs";
+import { createDemoBackend, DEMO_USER, DEMO_GUILDS } from "../../tools/demo-backend.mjs";
 import { createApiClient } from "../../assets/app/core/api.js";
 import { createEndpoints } from "../../assets/app/data/endpoints.js";
 import { createStore } from "../../assets/app/core/store.js";
@@ -89,7 +89,7 @@ export function createFetchAdapter(backend) {
   };
 }
 
-export function createHarness({ backend = createMockBackend(), token = "demo-token", url, signedOut = false } = {}) {
+export function createHarness({ backend = createDemoBackend(), token = "demo-token", url, signedOut = false } = {}) {
   const effectiveToken = signedOut ? "" : token;
   if (url) installDom({ url });
   else if (!globalThis.window) installDom();

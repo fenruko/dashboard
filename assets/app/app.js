@@ -438,7 +438,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
           "div",
           { class: "banner banner--info", role: "status" },
           icon("sparkles", { size: 15 }),
-          h("span", null, "Demo mode is on — you're exploring an in-memory mock of the bot API. Nothing is written to Discord."),
+          h("span", null, "Demo mode is on — you're exploring an in-memory demo of the bot API. Nothing is written to Discord."),
           button({ label: "Leave demo", size: "sm", variant: "ghost", onClick: () => {
             const url = new URL(location.href);
             url.searchParams.set("demo", "0");

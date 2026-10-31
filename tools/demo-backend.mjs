@@ -2,7 +2,7 @@
  *
  * Mirrors web_server.py's response shapes (wrapping, key names, string IDs) so
  * the dashboard can be developed and tested without a live bot. Shared by
- * tools/dev-server.mjs, tools/mock-server.mjs and the integration tests. */
+ * tools/dev-server.mjs, tools/demo-server.mjs and the integration tests. */
 
 import { SETTINGS_SECTIONS, getSection } from "../assets/app/data/settings-schema.js";
 
@@ -192,7 +192,7 @@ function seedSettings(guildId) {
   return data;
 }
 
-export function createMockBackend({ latency = 0, seed = 42 } = {}) {
+export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
   const random = lcg(seed);
   const startedAt = Date.now() - 1000 * 60 * 60 * 27;
   const settingsStore = new Map();
@@ -751,7 +751,7 @@ export function createMockBackend({ latency = 0, seed = 42 } = {}) {
     }
     if (route === "/music/lyrics") {
       if (!auth) return unauthorized();
-      return reply(200, { lyrics: ["Neon skyline, city breathing slow", "We are static in the afterglow", "Every signal finds a way back home", "", "Hold the frequency, don't let go", "Midnight colours in the undertow"].join("\n"), source: "mock" });
+      return reply(200, { lyrics: ["Neon skyline, city breathing slow", "We are static in the afterglow", "Every signal finds a way back home", "", "Hold the frequency, don't let go", "Midnight colours in the undertow"].join("\n"), source: "demo" });
     }
     if (route === "/music/fix" && upper === "POST") {
       if (!auth) return unauthorized();
@@ -1080,7 +1080,7 @@ export function createMockBackend({ latency = 0, seed = 42 } = {}) {
       return reply(200, { id: upload.id });
     }
 
-    return reply(404, { error: `No mock route for ${upper} ${route}` });
+    return reply(404, { error: `No demo route for ${upper} ${route}` });
   }
 
   function liveStats() {

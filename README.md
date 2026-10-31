@@ -2,7 +2,7 @@
 
 A static, no-build dashboard for the **Rift** Discord bot. It talks directly to
 the bot's Quart API (`web_server.py`) and its websockets — there is no separate
-backend and no mock data in production.
+backend and no placeholder data in production.
 
 - **Live settings** — all 28 `GUILD_SETTINGS_SECTIONS` are editable against the
   same database the bot reads. Strict setters (verification, starboard,
@@ -34,8 +34,8 @@ backend and no mock data in production.
 ```bash
 npm install
 npm run dev        # http://localhost:4173 — demo API + websockets included
-npm run serve      # static only, no mock API
-npm run mock       # standalone demo API on :8788
+npm run serve      # static only, no demo API
+npm run demo       # standalone demo API on :8788
 ```
 
 `npm run dev` generates `/config.js` with `apiBase: "<origin>/api"` and
@@ -57,7 +57,7 @@ step. `index.html` loads `/config.js` then `assets/app/main.js`.
 ## Tests
 
 ```bash
-npm test           # 78 unit + integration + jsdom page tests
+npm test           # 80 unit + integration + jsdom page tests
 npm run test:e2e   # starts both servers and checks HTTP, CORS, settings writes, websockets
 ```
 
@@ -72,12 +72,12 @@ The suite is deliberately adversarial:
 - `tests/integration/contract.test.mjs` — matches every request the dashboard
   makes against `tests/fixtures/bot-routes.json`, extracted from
   `web_server.py`. Invented or renamed routes fail CI.
-- `tests/dom/pages.test.mjs` — mounts every page in jsdom against the mock API,
+- `tests/dom/pages.test.mjs` — mounts every page in jsdom against the demo API,
   saves settings, looks up a user, pauses music, runs a stock trade, starts a
   call, completes a ban appeal, submits a bug report and verifies both
   verification outcomes.
 - `tests/e2e/smoke.mjs` — boots `tools/dev-server.mjs` and
-  `tools/mock-server.mjs` and validates the static shell, SPA fallbacks,
+  `tools/demo-server.mjs` and validates the static shell, SPA fallbacks,
   traversal guard, CORS, auth enforcement, persistence and `/ws` + `/ws/vc`.
 
 ## API contract
