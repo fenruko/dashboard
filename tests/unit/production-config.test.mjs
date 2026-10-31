@@ -10,9 +10,11 @@ const config = sandbox.window.RIFT_CONFIG;
 
 test("production config targets the live bot API, not a local or demo host", () => {
   assert.equal(typeof config, "object");
-  assert.match(config.apiBase, /^https:\/\/[a-z0-9.-]+\/api$/i);
-  assert.equal(/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(config.apiBase), false);
+  assert.match(config.apiBase, /^https:\/\/api\.rift\.baby(:\d+)?\/api$/i);
+  assert.equal(/localhost|127\.0\.0\.1|0\.0\.0\.0|ts\.net/i.test(config.apiBase), false);
   assert.equal(config.demo, false);
+  assert.equal(config.apiBaseFallbacks.length, 1);
+  assert.equal(config.apiBaseFallbacks[0], "https://api.rift.baby/api");
 });
 
 test("production config includes the Discord OAuth application settings", () => {

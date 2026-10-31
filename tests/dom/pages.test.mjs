@@ -356,6 +356,55 @@ test("verification success and flag paths both render", async () => {
   flaggedDom.window.close();
 });
 
+test("API host controls and diagnostics stay behind the developer allow-list", async () => {
+  installDom();
+  const normal = createHarness();
+  freshRoot();
+  let mounted = await mountPage("assets/app/pages/me.js", normal, { path: "/me", params: {}, query: {} });
+  await flush(6);
+  let text = document.getElementById("root").textContent;
+  assert.equal(text.includes("Developer tools"), false, "regular accounts never see developer tools");
+  assert.equal(text.includes("API base URL"), false, "regular accounts never see the API host");
+  assert.equal(text.includes("api.test"), false, "the API host is not rendered");
+  mounted.cleanup?.();
+
+  freshRoot();
+  mounted = await mountPage("assets/app/pages/status.js", normal, { path: "/status", params: {}, query: {} });
+  await flush(6);
+  text = document.getElementById("root").textContent;
+  assert.equal(text.includes("api.test"), false, "diagnostics never print the API base");
+  assert.equal(/API (base|host)/i.test(text), false, "diagnostics has no API host control");
+  mounted.cleanup?.();
+
+  freshRoot();
+  const signedOut = createHarness({ signedOut: true, url: "https://dash.test/login" });
+  mounted = await mountPage("assets/app/pages/login.js", signedOut, { path: "/login", params: {}, query: {} });
+  await flush(3);
+  text = document.body.textContent;
+  assert.equal(text.includes("Advanced: API host"), false, "sign-in has no API host editor");
+  assert.equal(text.includes("API base URL"), false);
+  mounted.cleanup?.();
+
+  const developer = createHarness({ userId: "834869554798395392" });
+  freshRoot();
+  mounted = await mountPage("assets/app/pages/me.js", developer, { path: "/me", params: {}, query: {} });
+  await flush(6);
+  text = document.getElementById("root").textContent;
+  assert.match(text, /Developer tools/, "allow-listed developers can open account tools");
+  assert.match(text, /Enable developer tools/, "developer tools are opt-in");
+  assert.equal(text.includes("API base URL"), false, "the host editor is hidden until a developer opts in");
+
+  const developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
+  assert.ok(developerCard, "developer card is present");
+  developerCard.querySelector('input[role="switch"]').click();
+  await flush(3);
+  assert.equal(developer.prefs.get().showDeveloperTools, true, "switch persists the developer opt-in");
+  text = document.getElementById("root").textContent;
+  assert.match(text, /API base URL/, "opting in reveals the API host editor");
+  assert.ok(document.querySelector("input.mono"), "the host field is a real input");
+  mounted.cleanup?.();
+});
+
 test.after(() => {
   assert.deepEqual(browserErrors, [], "no uncaught browser errors across the page suite");
 });

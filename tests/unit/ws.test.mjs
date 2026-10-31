@@ -10,6 +10,13 @@ test("absolute https API bases become wss sockets with the token", () => {
   );
 });
 
+test("the production API base keeps its explicit port for websockets", () => {
+  assert.equal(
+    wsUrlFor("https://api.rift.baby:24633/api", "/ws", "token"),
+    "wss://api.rift.baby:24633/ws?access_token=token"
+  );
+});
+
 test("relative API bases resolve against the page origin", (t) => {
   const previous = globalThis.location;
   globalThis.location = { href: "https://dash.test/g/123/music" };
