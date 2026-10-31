@@ -7,6 +7,7 @@ import { createDemoBackend, DEMO_USER, DEMO_GUILDS } from "../../tools/demo-back
 import { createApiClient } from "../../assets/app/core/api.js";
 import { createEndpoints } from "../../assets/app/data/endpoints.js";
 import { createStore } from "../../assets/app/core/store.js";
+import { createPreferences } from "../../assets/app/core/prefs.js";
 
 const API_BASE = "https://api.test/api";
 
@@ -89,7 +90,7 @@ export function createFetchAdapter(backend) {
   };
 }
 
-export function createHarness({ backend = createDemoBackend(), token = "demo-token", url, signedOut = false } = {}) {
+export function createHarness({ backend = createDemoBackend(), token = "demo-token", url, signedOut = false, userId = DEMO_USER.id } = {}) {
   const effectiveToken = signedOut ? "" : token;
   if (url) installDom({ url });
   else if (!globalThis.window) installDom();
@@ -130,7 +131,6 @@ export function createHarness({ backend = createDemoBackend(), token = "demo-tok
     manageable: true,
     botPresent: true,
   };
-  const prefs = { get: () => ({}), set: () => {}, subscribe: () => () => {}, reset: () => {} };
   const live = {
     statusStore: createStore({ stats: "open", vc: "open" }, { name: `live-${Math.random()}` }),
     subscribe: () => () => {},
@@ -147,7 +147,8 @@ export function createHarness({ backend = createDemoBackend(), token = "demo-tok
     confirmCalls.push(options);
     return true;
   };
-  const user = { id: DEMO_USER.id, username: DEMO_USER.username, global_name: DEMO_USER.global_name, avatar: null };
+  const user = { ...DEMO_USER, id: userId, username: userId === DEMO_USER.id ? DEMO_USER.username : "fenruko", global_name: userId === DEMO_USER.id ? DEMO_USER.global_name : "fenruko", avatar: null };
+  const prefs = createPreferences({ getUserId: () => (signedOut ? null : user.id) });
   const authState = signedOut
     ? { status: "anonymous", user: null, guilds: [], token: "", demo: true, error: null }
     : { status: "ready", user, guilds: [guild], token, demo: true };
@@ -198,7 +199,7 @@ export function createHarness({ backend = createDemoBackend(), token = "demo-tok
     };
   }
 
-  return { backend, api, endpoints, makeCtx, toast, toasts, confirmCalls, navigations, router, guild, user, fetchImpl, token: effectiveToken, auth };
+  return { backend, api, endpoints, makeCtx, toast, toasts, confirmCalls, navigations, router, guild, user, prefs, fetchImpl, token: effectiveToken, auth };
 }
 
 export async function mountPage(modulePath, harness, options = {}) {

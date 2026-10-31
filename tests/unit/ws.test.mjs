@@ -10,6 +10,13 @@ test("absolute https API bases become wss sockets with the token", () => {
   );
 });
 
+test("the production API base resolves to the matching secure websocket", () => {
+  assert.equal(
+    wsUrlFor("https://desktop-mo3r1pj.tailb9e0a9.ts.net/api", "/ws", "token"),
+    "wss://desktop-mo3r1pj.tailb9e0a9.ts.net/ws?access_token=token"
+  );
+});
+
 test("relative API bases resolve against the page origin", (t) => {
   const previous = globalThis.location;
   globalThis.location = { href: "https://dash.test/g/123/music" };

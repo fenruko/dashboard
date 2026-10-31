@@ -1,9 +1,9 @@
 /* Standalone demo API server.
  *
- * Useful when the dashboard is served elsewhere (GitHub Pages, a preview host,
- * a file server) and you want it pointed at the demo:
- *   npm run demo            → http://127.0.0.1:8788/api
- *   open the dashboard with ?api=http://<host>:8788/api&demo=1
+ * `npm run dev` already serves the dashboard, demo API and websockets together
+ * on :4173 and is the supported way to run the demo. This script exposes just
+ * the API on :8788 for integration tests and for pointing a custom /config.js
+ * at it (apiBase: "http://<host>:8788/api", demo: true).
  *
  * It is intentionally the same backend module the dev server and tests use. */
 

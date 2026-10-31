@@ -1,7 +1,6 @@
 /* Diagnostics: what the dashboard is talking to, in real time. */
 
 import { h, mount, clear } from "../ui/dom.js";
-import { icon } from "../ui/icons.js";
 import {
   badge,
   button,
@@ -9,8 +8,6 @@ import {
   callout,
   copyButton,
   dataTable,
-  errorState,
-  field,
   grid,
   keyValueGrid,
   pageHeader,
@@ -18,11 +15,9 @@ import {
   spinner,
   statCard,
   statusDot,
-  textInput,
   toast,
 } from "../ui/components.js";
-import { getConfig, setApiBase, clearOverrides, saveUiConfig } from "../config.js";
-import { fmtDuration, fmtInt, fmtRelative, copyToClipboard } from "../core/format.js";
+import { fmtInt, fmtRelative } from "../core/format.js";
 
 export async function mountPage(ctx) {
   const { root, api, auth, live, router, prefs } = ctx;
@@ -41,13 +36,11 @@ export async function mountPage(ctx) {
     ],
   });
 
-  const apiBaseInput = textInput({ value: api.getBase(), className: "mono" });
-
   function probeSection() {
     const results = probeResults;
     return card({
       title: "Endpoint health",
-      subtitle: "Runs unauthenticated/read-only probes against the API host.",
+      subtitle: "Runs unauthenticated/read-only probes against the Rift API.",
       actions: button({
         label: "Run probes",
         icon: "activity",
@@ -105,13 +98,12 @@ export async function mountPage(ctx) {
     const liveStatus = live.statusStore.get();
     const breaker = api.isBreakerOpen();
     const log = api.getLog();
-    const config = getConfig();
 
     const cards = [
       grid(
         4,
         statCard({ label: "Session", value: session.status, icon: session.status === "ready" ? "user-check" : "user-x", tone: session.status === "ready" ? "success" : "danger" }),
-        statCard({ label: "API base", value: config.isLocal ? "Local" : "Remote", hint: api.getBase().replace(/^https?:\/\//, ""), icon: "server", tone: "accent" }),
+        statCard({ label: "Live feed", value: liveStatus.stats === "open" ? "Live" : "Offline", hint: `voice ${liveStatus.vc}`, icon: "activity", tone: liveStatus.stats === "open" ? "success" : "warning" }),
         statCard({ label: "Requests", value: fmtInt(metrics.requests), hint: `${fmtInt(metrics.failures)} failed · ${fmtInt(metrics.retries)} retried`, icon: "activity", tone: "violet" }),
         statCard({ label: "Cache", value: fmtInt(api.cacheSize()), hint: `${fmtInt(metrics.cacheHits)} hits`, icon: "database", tone: "success" })
       ),
@@ -150,28 +142,10 @@ export async function mountPage(ctx) {
               h("div", { class: "row row--between" }, h("span", { class: "muted small" }, "Aborted requests"), h("span", { class: "mono small" }, fmtInt(metrics.aborts))),
               h("div", { class: "row row--between" }, h("span", { class: "muted small" }, "Navigator"), badge({ label: navigator.onLine ? "online" : "offline", tone: navigator.onLine ? "success" : "danger" }))
             ),
-            config.isLocal
-              ? callout({ tone: "info", title: "Local API", children: "You're pointed at a localhost/demo backend. Demo data is expected." })
-              : callout({ tone: "info", title: "Automatic retries", children: "GETs retry 3× with jittered backoff; mutations never retry silently. A 401 raises a session-expired banner instead of logging you out mid-edit." }),
+            callout({ tone: "info", title: "Automatic retries", children: "GETs retry 3× with jittered backoff; mutations never retry silently. A 401 raises a session-expired banner instead of logging you out mid-edit." }),
           ],
         })
       ),
-
-      card({
-        title: "API host",
-        subtitle: "Point the dashboard at a different tunnel without a rebuild.",
-        children: h(
-          "div",
-          { class: "stack-tight" },
-          field({
-            label: "Base URL",
-            help: "Must include /api. Saved in this browser only.",
-            children: h("div", { class: "row" }, apiBaseInput, button({ label: "Apply", variant: "primary", onClick: () => applyBase() }), button({ label: "Reset", variant: "ghost", onClick: () => { clearOverrides(); toast.info("Reset to defaults"); setTimeout(() => location.reload(), 400); } })),
-          }),
-          h("div", { class: "small muted mono" }, `candidates: ${api.getCandidates().join("  ·  ") || "none"}`),
-          h("div", { class: "row", style: "margin-top:10px" }, button({ label: "What is this?", variant: "ghost", size: "sm", icon: "help", onClick: () => toast.info("If your bot runs behind Tailscale, ngrok or a Cloudflare tunnel, this is the /api URL the dashboard should call. Diagnostics will show a red banner when it's unreachable.") }))
-        ),
-      }),
 
       probeSection(),
 
@@ -206,13 +180,6 @@ export async function mountPage(ctx) {
 
     clear(content);
     cards.forEach((node) => node && content.append(node));
-  }
-
-  function applyBase() {
-    setApiBase(apiBaseInput.value);
-    toast.success("API host saved. Reloading…");
-    saveUiConfig({ lastBaseChange: Date.now() });
-    setTimeout(() => location.reload(), 500);
   }
 
   render();

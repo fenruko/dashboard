@@ -26,7 +26,7 @@ import { createStore } from "./core/store.js";
 import { createPreferences } from "./core/prefs.js";
 import { createEndpoints } from "./data/endpoints.js";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS } from "./data/settings-schema.js";
-import { getConfig, buildInviteUrl } from "./config.js";
+import { getConfig, buildInviteUrl, isDeveloperUserId, clearApiBaseOverride } from "./config.js";
 import { copyToClipboard, fmtInt, titleCase } from "./core/format.js";
 
 import * as loginPage from "./pages/login.js";
@@ -89,8 +89,8 @@ const ROUTES = [
   { path: "/g/:guildId/settings", page: settingsPage, guild: true, title: "Settings" },
   { path: "/g/:guildId/settings/:section", page: settingsPage, guild: true, title: "Settings" },
   { path: "/me", page: mePage, title: "Account & preferences" },
-  { path: "/status", page: statusPage, title: "Diagnostics" },
-  { path: "/diagnostics", page: statusPage, title: "Diagnostics" },
+  { path: "/status", page: statusPage, title: "Diagnostics", developer: true },
+  { path: "/diagnostics", page: statusPage, title: "Diagnostics", developer: true },
 ];
 
 export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverride } = {}) {
@@ -187,9 +187,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     const session = auth.get();
     return [
       `Rift Dashboard diagnostics — ${new Date().toISOString()}`,
-      `URL: ${location.href}`,
-      `API base: ${api.getBase()}`,
-      `API candidates: ${api.getCandidates().join(", ")}`,
+      `URL: ${location.pathname}`,
       `Demo mode: ${session.demo}`,
       `Session: ${session.status} (expires ${session.expiresAt ? new Date(session.expiresAt).toISOString() : "unknown"})`,
       `User: ${session.user ? `${session.user.username} (${session.user.id})` : "anonymous"}`,
@@ -241,6 +239,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
 
   function buildShell(ctx) {
     const session = auth.get();
+    const developer = Boolean(prefs.get().showDeveloperTools);
     const guild = ctx?.params?.guildId ? auth.guildById(ctx.params.guildId) : null;
     const navItems = guild ? NAV_MAIN.map((item) => ({ ...item, href: guildPath(guild.id, item.path) })) : [];
     const settingsGroups = guild ? settingsNav() : [];
@@ -274,7 +273,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       h(
         "div",
         { class: "sidebar-brand" },
-        h("span", { class: "brand-mark" }, "R"),
+        h("img", { class: "brand-mark brand-logo", src: "/assets/riftlogo.jpg", alt: "", width: 30, height: 30 }),
         h("div", { class: "brand-text" }, h("span", { class: "brand-name" }, config.siteName), h("span", { class: "brand-sub" }, "Dashboard"))
       ),
       guild
@@ -310,7 +309,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
               h("div", { class: "nav-group-label" }, "General"),
               navLink({ href: "/guilds", label: "Servers", icon: "server" }, ctx),
               navLink({ href: "/me", label: "Account", icon: "user" }, ctx),
-              navLink({ href: "/status", label: "Diagnostics", icon: "terminal" }, ctx),
+              developer && navLink({ href: "/status", label: "Diagnostics", icon: "terminal" }, ctx),
               navLink({ href: "/bugreport", label: "Report a bug", icon: "bug" }, ctx)
             ),
         ...settingsGroups.map((group) =>
@@ -327,7 +326,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
             null,
             h("div", { class: "nav-group-label" }, "More"),
             navLink({ href: "/guilds", label: "All servers", icon: "grid" }, ctx),
-            navLink({ href: "/status", label: "Diagnostics", icon: "terminal" }, ctx),
+            developer && navLink({ href: "/status", label: "Diagnostics", icon: "terminal" }, ctx),
             navLink({ href: "/me", label: "Account", icon: "user" }, ctx),
             navLink({ href: "/bugreport", label: "Report a bug", icon: "bug" }, ctx)
           )
@@ -494,6 +493,11 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
           mode: "gate",
           error: session.error,
         });
+        return;
+      }
+      if (route?.developer && !prefs.get().showDeveloperTools) {
+        toast.warning("Turn on Developer tools in Account to open Diagnostics.", { title: "Developer tools are off" });
+        router.replace("/me");
         return;
       }
     }
@@ -664,7 +668,11 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         items.push({ group: `Settings · ${titleCase(section.group)}`, label: section.title, icon: section.icon, sub: section.key, run: () => router.navigate(guildPath(guild.id, `settings/${section.key}`)) });
       }
     }
-    for (const action of paletteActions) items.push({ group: "Actions", ...action });
+    const developer = Boolean(prefs.get().showDeveloperTools);
+    for (const action of paletteActions) {
+      if (!developer && (action.id === "status" || action.id === "copy-diag")) continue;
+      items.push({ group: "Actions", ...action });
+    }
     for (const other of session.guilds) {
       items.push({ group: "Servers", label: other.name, icon: "server", sub: other.botPresent === false ? "Rift not added" : "", run: () => router.navigate(guildPath(other.id)) });
     }
@@ -878,6 +886,10 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     const changed = session.status !== lastStatus;
     lastStatus = session.status;
     if (session.status === "ready") {
+      if (!isDeveloperUserId(session.user?.id) && localStorage.getItem("rift_api_base_owner")) {
+        clearApiBaseOverride();
+        api.setBase(getConfig().apiBase);
+      }
       live.start();
       prefs.hydrateFromServer();
       if (changed) {
@@ -894,6 +906,25 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     if (changed && appStore.get().ready) {
       renderBanners(router.getCurrent(), router.getCurrent()?.params?.guildId ? auth.guildById(router.getCurrent().params.guildId) : null);
     }
+  });
+
+  // The Diagnostics links depend on an account preference, so rebuild the
+  // shell when a user opts in or out. Hydrated preferences take effect too.
+  let lastDeveloperTools = prefs.get().showDeveloperTools;
+  prefs.subscribe((next) => {
+    if (next.showDeveloperTools === lastDeveloperTools) return;
+    lastDeveloperTools = next.showDeveloperTools;
+    if (!appStore.get().ready || !shellEls) return;
+    const current = router.getCurrent();
+    if (!lastDeveloperTools && current?.route?.developer) {
+      router.replace("/me");
+      return;
+    }
+    const scroll = window.scrollY;
+    buildShell(current);
+    renderBanners(current, current?.params?.guildId ? auth.guildById(current.params.guildId) : null);
+    renderRoute(current);
+    requestAnimationFrame(() => window.scrollTo(0, scroll));
   });
 
   appStore.subscribe((state, meta) => {

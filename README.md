@@ -27,7 +27,10 @@ backend and no placeholder data in production.
   verification, and bug reports with screenshots.
 - **Operations** — diagnostics (API latency, breaker, sockets, cache), command
   palette (`⌘K`), keyboard shortcuts, themes, density, reduced motion,
-  auto-refresh preferences, offline/session-expired handling and toasts.
+  auto-refresh preferences, offline/session-expired handling and toasts. The
+  API host is never exposed on Diagnostics. Developer tools (Diagnostics and
+  connection checks) are opt-in for every account; only allow-listed developers
+  (fenruko by default) can change the host itself.
 
 ## Run it
 
@@ -47,17 +50,20 @@ window.RIFT_CONFIG = {
   apiBase: "https://your-bot.example.com/api",
   apiBaseFallbacks: ["https://backup.example.com/api"],
   demo: false,
+  developerUserIds: [], // extra Discord IDs allowed to use Account → Developer tools
   discordClientId: "1329184069426348052",
 };
 ```
 
 The UI is plain ES modules under `assets/app/`; there is no bundler and no build
-step. `index.html` loads `/config.js` then `assets/app/main.js`.
+step. `index.html` loads `/config.js` then `assets/app/main.js`. Fonts and the
+Rift mark are self-hosted (`assets/fonts`, `assets/riftlogo.jpg`); no CDN is
+required at runtime.
 
 ## Tests
 
 ```bash
-npm test           # 80 unit + integration + jsdom page tests
+npm test           # 87 unit + integration + jsdom page tests
 npm run test:e2e   # starts both servers and checks HTTP, CORS, settings writes, websockets
 ```
 

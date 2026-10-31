@@ -16,10 +16,12 @@ import {
   segmentedControl,
   selectInput,
   switchControl,
+  textInput,
   toast,
   keyValueGrid,
 } from "../ui/components.js";
 import { fmtInt, fmtRelative } from "../core/format.js";
+import { getConfig, normalizeBase, setApiBase, clearApiBaseOverride, isDeveloperUserId } from "../config.js";
 
 export async function mountPage(ctx) {
   const { root, auth, prefs, router, endpoints, api } = ctx;
@@ -28,6 +30,7 @@ export async function mountPage(ctx) {
   const content = h("div", { class: "stack" });
   let saving = false;
   let lastSync = { at: 0, ok: null, error: null };
+  let apiDraft = getConfig().apiBase;
 
   const header = pageHeader({
     eyebrow: "Account",
@@ -36,8 +39,137 @@ export async function mountPage(ctx) {
     actions: [button({ label: "Back to servers", icon: "grid", onClick: () => router.navigate("/guilds") })],
   });
 
+  function developerCard() {
+    const owner = isDeveloperUserId(session.user?.id);
+    const result = h("div");
+    const input = textInput({
+      value: apiDraft,
+      className: "mono",
+      onInput: (event) => {
+        apiDraft = event.target.value;
+      },
+    });
+
+    async function testHost() {
+      const base = normalizeBase(owner ? apiDraft : getConfig().apiBase);
+      clear(result);
+      if (!base) {
+        result.append(callout({ tone: "danger", children: "Enter an API URL first." }));
+        return;
+      }
+      result.append(h("p", { class: "small muted" }, "Testing…"));
+      const started = performance.now();
+      try {
+        const response = await fetch(`${base}/stats`, { headers: { Accept: "application/json" }, cache: "no-store" });
+        const elapsed = Math.round(performance.now() - started);
+        const payload = await response.json().catch(() => ({}));
+        clear(result);
+        result.append(
+          response.ok
+            ? callout({
+                tone: "success",
+                title: `Reachable in ${elapsed}ms`,
+                children: `${fmtInt(payload.servers ?? 0)} servers · ${fmtInt(payload.users ?? 0)} users`,
+              })
+            : callout({ tone: "warning", title: `HTTP ${response.status}`, children: "The host answered, but not with the Rift API." })
+        );
+      } catch {
+        clear(result);
+        result.append(
+          callout({
+            tone: "danger",
+            title: "Couldn't reach that host",
+            children: "Check the tunnel, the HTTPS certificate, and WEB_ALLOWED_ORIGINS on the bot.",
+          })
+        );
+      }
+    }
+
+    function saveHost() {
+      if (!isDeveloperUserId(session.user?.id)) {
+        toast.error("Only Rift developers can change the API host.");
+        return;
+      }
+      const next = normalizeBase(apiDraft);
+      if (!next) {
+        toast.error("Enter a valid API URL.");
+        return;
+      }
+      setApiBase(next, session.user.id);
+      toast.success("API host saved for this browser. Reloading…");
+      setTimeout(() => location.reload(), 500);
+    }
+
+    function resetHost() {
+      clearApiBaseOverride();
+      toast.info("API host reset to the Rift default.");
+      setTimeout(() => location.reload(), 400);
+    }
+
+    const enabled = Boolean(prefs.get().showDeveloperTools);
+    return card({
+      title: "Developer tools",
+      subtitle: "Optional diagnostics and connection tools for this device.",
+      children: [
+        switchControl({
+          label: "Enable developer tools",
+          description: "Reveal Diagnostics and connection checks in this browser. Available to every account.",
+          checked: enabled,
+          onChange: (value) => {
+            prefs.set({ showDeveloperTools: value });
+            render();
+          },
+        }),
+        enabled &&
+          callout(
+            owner
+              ? {
+                  tone: "warning",
+                  title: "Changing the API host is restricted",
+                  children: "Only fenruko and any IDs added to developerUserIds in config.js can point this browser at another bot API. The host is never shown on Diagnostics.",
+                }
+              : {
+                  tone: "info",
+                  title: "API host changes are restricted",
+                  children: "The bot API host is managed by fenruko. Developer tools give you Diagnostics and connection checks; the host itself stays unchanged.",
+                }
+          ),
+        enabled &&
+          owner &&
+          field({
+            label: "API base URL",
+            help: "Include /api. Stored in this browser only and tied to your Discord account.",
+            children: h(
+              "div",
+              { class: "row", style: "flex-wrap:wrap" },
+              input,
+              button({ label: "Test", icon: "activity", onClick: testHost }),
+              button({ label: "Save", variant: "primary", onClick: saveHost }),
+              button({ label: "Reset", variant: "ghost", onClick: resetHost })
+            ),
+          }),
+        enabled &&
+          !owner &&
+          h(
+            "div",
+            { class: "row", style: "margin-top:10px" },
+            button({ label: "Test connection", icon: "activity", onClick: testHost })
+          ),
+        enabled && result,
+        enabled &&
+          h(
+            "div",
+            { class: "row", style: "margin-top:10px" },
+            button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") })
+          ),
+      ],
+    });
+  }
+
   function render() {
     const p = prefs.get();
+    const developer = isDeveloperUserId(session.user?.id);
+    const developerTools = Boolean(p.showDeveloperTools);
     clear(content);
     content.append(
       grid(
@@ -61,7 +193,7 @@ export async function mountPage(ctx) {
               { label: "User ID", value: session.user?.id || "—", mono: true },
               { label: "Manageable servers", value: fmtInt(session.guilds.length) },
               { label: "Token expires", value: session.expiresAt ? fmtRelative(session.expiresAt) : "unknown" },
-              { label: "API host", value: api.getBase().replace(/^https?:\/\//, ""), mono: true },
+              ...(developer ? [{ label: "Access", value: "Rift developer", mono: false }] : []),
             ]),
             h(
               "div",
@@ -189,7 +321,7 @@ export async function mountPage(ctx) {
           h(
             "div",
             { class: "row", style: "margin-top:12px;flex-wrap:wrap" },
-            button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") }),
+            developerTools && button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") }),
             button({
               label: "Clear local caches",
               icon: "trash",
@@ -202,10 +334,10 @@ export async function mountPage(ctx) {
                 }
               },
             }),
-            h("a", { class: "btn btn--ghost btn--sm", href: "/status" }, icon("shield", { size: 13 }), "Privacy details")
           ),
         ],
-      })
+      }),
+      developerCard()
     );
   }
 

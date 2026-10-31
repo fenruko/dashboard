@@ -1,13 +1,20 @@
 /* Runtime configuration + persistent app settings.
  * Resolution order (first wins):
- *   1. ?api= / ?demo= query override (persisted so a reload keeps working)
- *   2. localStorage override set from the in-app diagnostics panel
- *   3. window.RIFT_CONFIG (served from /config.js, editable without a rebuild)
- *   4. compiled-in defaults
+ *   1. a developer-only API override saved from Account (owner-locked)
+ *   2. window.RIFT_CONFIG (served from /config.js, editable without a rebuild)
+ *   3. compiled-in defaults
+ *
+ * The API host is deliberately not editable from a query string or from
+ * Diagnostics. Only allow-listed Rift developers can change it, from Account.
  */
+
+// Built-in developers. Deployments can grant the same tools to additional
+// Discord IDs with `developerUserIds` in /config.js.
+export const RIFT_DEVELOPER_IDS = Object.freeze(["834869554798395392"]);
 
 const STORAGE = {
   api: "rift_api_base",
+  apiOwner: "rift_api_base_owner",
   apiFallbacks: "rift_api_fallbacks",
   config: "rift_dashboard_config",
 };
@@ -15,6 +22,7 @@ const STORAGE = {
 const COMPILED_DEFAULTS = {
   apiBase: "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api",
   apiBaseFallbacks: [],
+  developerUserIds: [],
   discordClientId: "1329184069426348052",
   invitePermissions: "5076723787231222",
   siteName: "Rift",
@@ -45,6 +53,13 @@ function runtimeConfig() {
     : {};
 }
 
+function allowedDeveloperIds() {
+  const runtime = runtimeConfig();
+  return new Set(
+    [...RIFT_DEVELOPER_IDS, ...(Array.isArray(runtime.developerUserIds) ? runtime.developerUserIds : [])].map(String)
+  );
+}
+
 export function normalizeBase(url) {
   const raw = String(url || "").trim();
   if (!raw) return "";
@@ -62,17 +77,14 @@ export function getConfig() {
   const runtime = runtimeConfig();
   const params = typeof location !== "undefined" ? new URLSearchParams(location.search) : new URLSearchParams();
 
-  // Query overrides are sticky: a support link like ?api=https://… keeps
-  // working after the OAuth round-trip drops the query string.
-  if (params.has("api")) {
-    const candidate = normalizeBase(params.get("api"));
-    if (candidate) lsSet(STORAGE.api, candidate);
-  }
   if (params.has("demo")) {
     lsSet(STORAGE.demo, parseBoolean(params.get("demo")) ? "1" : "0");
   }
 
-  const storedApi = lsGet(STORAGE.api);
+  // An API override is valid only when a developer saved it. Query strings and
+  // anonymous localStorage writes cannot change the host.
+  const storedOwner = lsGet(STORAGE.apiOwner);
+  const storedApi = storedOwner && allowedDeveloperIds().has(storedOwner) ? lsGet(STORAGE.api) : null;
   const storedDemo = lsGet(STORAGE.demo);
   const apiBase = normalizeBase(storedApi || runtime.apiBase || COMPILED_DEFAULTS.apiBase);
 
@@ -105,11 +117,23 @@ export function getConfig() {
   };
 }
 
-export function setApiBase(value) {
+export function setApiBase(value, ownerUserId) {
   const next = normalizeBase(value);
-  if (!next) return getConfig();
+  if (!next || !ownerUserId || !isDeveloperUserId(ownerUserId)) return getConfig();
   lsSet(STORAGE.api, next);
+  lsSet(STORAGE.apiOwner, String(ownerUserId));
   return getConfig();
+}
+
+export function clearApiBaseOverride() {
+  lsSet(STORAGE.api, null);
+  lsSet(STORAGE.apiOwner, null);
+  return getConfig();
+}
+
+export function isDeveloperUserId(userId) {
+  if (!userId) return false;
+  return allowedDeveloperIds().has(String(userId));
 }
 
 export function setApiFallbacks(list) {
@@ -125,6 +149,7 @@ export function setDemoMode(enabled) {
 
 export function clearOverrides() {
   lsSet(STORAGE.api, null);
+  lsSet(STORAGE.apiOwner, null);
   lsSet(STORAGE.apiFallbacks, null);
   lsSet(STORAGE.demo, null);
   lsSet(STORAGE.config, null);
