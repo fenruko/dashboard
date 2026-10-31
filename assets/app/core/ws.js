@@ -7,7 +7,12 @@ import { createStore } from "./store.js";
 export function wsUrlFor(apiBase, path, token) {
   const raw = String(apiBase || "").replace(/\/+$/, "");
   const root = raw.replace(/\/api$/i, "");
-  const url = new URL(`${root}${path.startsWith("/") ? path : `/${path}`}`);
+  const suffix = `${root}${path.startsWith("/") ? path : `/${path}`}`;
+  // A relative API base ("/api") is the normal same-origin deployment. Resolve
+  // it against the page so both http and https (ws/wss) work, including under
+  // a tunnel or a live-preview host.
+  const fallback = typeof location !== "undefined" && location.href ? location.href : "http://localhost/";
+  const url = /^[a-z][a-z0-9+.-]*:\/\//i.test(suffix) ? new URL(suffix) : new URL(suffix || "/", fallback);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   if (token) url.searchParams.set("access_token", token);
   return url.toString();

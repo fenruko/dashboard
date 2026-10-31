@@ -101,7 +101,7 @@ export function getConfig() {
     apiBase,
     apiBaseFallbacks: [...new Set(fallbacks)],
     demo,
-    isLocal: /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(apiBase),
+    isLocal: !/^https?:\/\//i.test(apiBase) || /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:|\/|$)/i.test(apiBase),
   };
 }
 

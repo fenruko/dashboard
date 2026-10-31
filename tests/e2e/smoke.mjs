@@ -96,7 +96,7 @@ try {
   const config = await (await fetch(`${base}/config.js`)).text();
   assert.match(config, /apiBase/);
   assert.match(config, /demo: true/);
-  assert.match(config, new RegExp(`${DEV_PORT}/api`));
+  assert.ok(config.includes('apiBase: "/api"'), "dev uses a same-origin API path so previews and remote browsers work");
 
   const deepLink = await fetch(`${base}/g/100000000000000001/settings/verification`);
   assert.equal(deepLink.status, 200, "SPA deep links fall back to index.html");

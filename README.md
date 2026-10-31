@@ -57,7 +57,7 @@ step. `index.html` loads `/config.js` then `assets/app/main.js`.
 ## Tests
 
 ```bash
-npm test           # 72 unit + integration + jsdom page tests
+npm test           # 76 unit + integration + jsdom page tests
 npm run test:e2e   # starts both servers and checks HTTP, CORS, settings writes, websockets
 ```
 
