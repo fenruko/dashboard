@@ -1,0 +1,816 @@
+[
+ {
+  "kind": "route",
+  "path": "/api/<path:path>",
+  "methods": [
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/dashboard",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/verify",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/<path:path>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/uploads/<path:filename>",
+  "methods": []
+ },
+ {
+  "kind": "websocket",
+  "path": "/ws",
+  "methods": []
+ },
+ {
+  "kind": "websocket",
+  "path": "/ws/vc",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/stats",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/bot/guild-ids",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/verification/flags/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/verification/fingerprints/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/verify",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/search",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/fix",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/state/<guild_id>",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api comment"
+ },
+ {
+  "kind": "route",
+  "path": "/api/user/voice/<string:guild_id>/<string:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/control",
+  "methods": [
+   "POST"
+  ],
+  "source": "audio-api comment"
+ },
+ {
+  "kind": "route",
+  "path": "/api/stocks/market",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/stocks/portfolio/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/stocks/trade",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/stocks/leaderboard",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/chart/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/profile/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/nowplaying/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/topartists/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/toptracks/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/weeklyartists/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/genres/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/lastfm/heatmap/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/analytics/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/mod/stats/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/mod/logs/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/users/resolve",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/mod/user/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/mod/user",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/mod/action",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/mod/action",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/settings/<section>",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/settings/<section>",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/info",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/mod/bans/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/mod/members/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/mod/roles/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<id>",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api comment"
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<int:user_id>/create",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<int:user_id>/delete",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<int:user_id>/rename",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<int:user_id>/remove_track",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<id>/play",
+  "methods": [
+   "POST"
+  ],
+  "source": "audio-api comment"
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/history/<guild_id>",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api comment"
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/topsongs/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/vc/guilds",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/vc/call",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/vc/join",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/vc/hangup",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/vc/status",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api comment"
+ },
+ {
+  "kind": "route",
+  "path": "/api/prefs/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/prefs/<int:user_id>",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/login",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/logout",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/me",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/permissions",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/upload",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/attachments/<int:attachment_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/lookup",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/send-otp",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/verify-otp",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/submit",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/thread/<token>",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/thread/<token>/message",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/thread/<token>/upload",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>/claim",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>/unclaim",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>/upload",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>/message",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>/resolve",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>/blacklist",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/appeals/<int:appeal_id>/unblacklist",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/bugreports/upload",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/bugreports/submit",
+  "methods": [
+   "POST",
+   "OPTIONS"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/bugreports/attachments/<int:attachment_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bugreports",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bugreports/<int:report_id>/resolve",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/blacklist",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/blacklist/lookup/<int:user_id>",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/blacklist/<int:user_id>/history",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/blacklist",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/blacklist/<int:user_id>",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/staff",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/staff",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/staff/<int:staff_id>",
+  "methods": [
+   "PATCH"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/staff/<int:staff_id>",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/audit-log",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/overview",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/members/search",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/economy",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/economy/search/<int:user_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/economy/adjust",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/economy/inbox",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/economy/inbox/<int:adjustment_id>/resolve",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/moderation",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/tickets",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/voice",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/verification",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/levels",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/invites",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/giveaways",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/confessions",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/logs/errors",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/guilds",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/guilds/<int:guild_id>",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/guilds/<int:guild_id>/leave",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/broadcast",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/cogs",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/cogs/<name>/reload",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/cogs/<name>/unload",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/cogs/<name>/load",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/maintenance",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/maintenance",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/restart",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/exec/bot/shutdown",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "websocket",
+  "path": "/ws/exec",
+  "methods": []
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<int:user_id>",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api"
+ },
+ {
+  "kind": "route",
+  "path": "/api/playlists/<int:user_id>/play",
+  "methods": [
+   "POST"
+  ],
+  "source": "audio-api"
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/state/<int:guild_id>",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api"
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/history/<int:guild_id>",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api"
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/lyrics",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api"
+ },
+ {
+  "kind": "route",
+  "path": "/api/music/stream",
+  "methods": [
+   "GET"
+  ],
+  "source": "audio-api"
+ }
+]

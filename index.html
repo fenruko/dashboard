@@ -1,30 +1,56 @@
 <!DOCTYPE html>
-<html lang="en" data-base="/">
+<html lang="en" data-base="/" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#08090c" />
+    <meta
+      name="description"
+      content="Rift's dashboard — live server settings, moderation, music, stocks and Last.fm insight for the Rift Discord bot."
+    />
     <title>Rift Dashboard</title>
     <link rel="icon" type="image/png" href="https://i.postimg.cc/qR4jqJdK/cropped_circle_image.png" />
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
     <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-5N6mGLCL.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-C9HzN_8p.css">
-    <link rel="stylesheet" href="/assets/music-room.css" />
-    <script type="module" src="/assets/music-room.js"></script>
-    <!-- source divers: welcome. the water's fine. try the konami code. -->
-    <script type="module" src="/assets/rift-eggs.js"></script>
-    <link rel="stylesheet" href="/assets/dash-plus.css" />
-    <script type="module" src="/assets/dash-plus.js"></script>
+    <link rel="stylesheet" href="/assets/app/app.css" />
+
+    <!-- Optional, no-build runtime overrides. Edit /config.js to point the
+         dashboard at a different API host without touching app code. -->
+    <script src="/config.js"></script>
+
+    <script type="module" src="/assets/app/main.js"></script>
+
+    <!-- source divers: welcome back. the water's fine. press ? for shortcuts. -->
   </head>
-  <body class="bg-[#08090c]">
+  <body>
     <script>
+      /* GitHub Pages / static hosts have no server rewrite. 404.html stashes the
+         intended deep link in sessionStorage; restore it before the router boots
+         so the URL is correct on first paint. */
       (function () {
-        var redirect = sessionStorage.redirect;
-        delete sessionStorage.redirect;
-        if (redirect && redirect !== location.pathname + location.search + location.hash) {
-          history.replaceState(null, "", redirect);
+        try {
+          var redirect = sessionStorage.redirect;
+          delete sessionStorage.redirect;
+          if (redirect && redirect !== location.pathname + location.search + location.hash) {
+            history.replaceState(null, "", redirect);
+          }
+        } catch (e) {
+          /* private mode / storage disabled — the router falls back to hash URLs */
         }
       })();
     </script>
-    <div id="root"></div>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div id="root">
+      <div class="boot" role="status" aria-live="polite">
+        <div class="boot-mark" aria-hidden="true">R</div>
+        <p>Loading your dashboard…</p>
+        <noscript>
+          <p class="boot-note">Rift's dashboard needs JavaScript enabled.</p>
+        </noscript>
+      </div>
+    </div>
+    <div id="overlay-root"></div>
+    <div id="toast-root" class="toast-root" role="region" aria-label="Notifications" aria-live="polite"></div>
   </body>
 </html>
