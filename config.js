@@ -14,8 +14,8 @@
  */
 window.RIFT_CONFIG = {
   // The live Rift bot API. Every page reads and writes this host directly.
-  apiBase: "https://api.rift.baby:24633/api",
-  apiBaseFallbacks: ["https://api.rift.baby/api"],
+  apiBase: "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api",
+  apiBaseFallbacks: [],
   developerUserIds: [],
   demo: false,
   discordClientId: "1329184069426348052",

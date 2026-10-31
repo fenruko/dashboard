@@ -20,8 +20,8 @@ const STORAGE = {
 };
 
 const COMPILED_DEFAULTS = {
-  apiBase: "https://api.rift.baby:24633/api",
-  apiBaseFallbacks: ["https://api.rift.baby/api"],
+  apiBase: "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api",
+  apiBaseFallbacks: [],
   developerUserIds: [],
   discordClientId: "1329184069426348052",
   invitePermissions: "5076723787231222",

@@ -10,10 +10,10 @@ test("absolute https API bases become wss sockets with the token", () => {
   );
 });
 
-test("the production API base keeps its explicit port for websockets", () => {
+test("the production API base resolves to the matching secure websocket", () => {
   assert.equal(
-    wsUrlFor("https://api.rift.baby:24633/api", "/ws", "token"),
-    "wss://api.rift.baby:24633/ws?access_token=token"
+    wsUrlFor("https://desktop-mo3r1pj.tailb9e0a9.ts.net/api", "/ws", "token"),
+    "wss://desktop-mo3r1pj.tailb9e0a9.ts.net/ws?access_token=token"
   );
 });
 

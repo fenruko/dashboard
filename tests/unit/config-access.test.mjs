@@ -17,10 +17,10 @@ class MemoryStorage {
 }
 
 test("the bundled production host is the public Rift API", async () => {
-  globalThis.window = { RIFT_CONFIG: { apiBase: "https://api.rift.baby:24633/api" } };
+  globalThis.window = { RIFT_CONFIG: { apiBase: "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api" } };
   globalThis.localStorage = new MemoryStorage();
   const config = await import("../../assets/app/config.js");
-  assert.equal(config.getConfig().apiBase, "https://api.rift.baby:24633/api");
+  assert.equal(config.getConfig().apiBase, "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api");
 });
 
 test("only allow-listed developer IDs get developer access", async () => {
@@ -35,24 +35,24 @@ test("only allow-listed developer IDs get developer access", async () => {
 });
 
 test("API host overrides are owner-locked and never come from query strings", async () => {
-  globalThis.window = { RIFT_CONFIG: { apiBase: "https://api.rift.baby:24633/api" } };
+  globalThis.window = { RIFT_CONFIG: { apiBase: "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api" } };
   globalThis.location = new URL("https://dash.rift.cool/?api=https://evil.example/api");
   globalThis.localStorage = new MemoryStorage();
   const config = await import("../../assets/app/config.js");
 
-  assert.equal(config.getConfig().apiBase, "https://api.rift.baby:24633/api", "query strings are ignored");
+  assert.equal(config.getConfig().apiBase, "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api", "query strings are ignored");
 
   config.setApiBase("https://attacker.example/api");
-  assert.equal(config.getConfig().apiBase, "https://api.rift.baby:24633/api", "an override requires an owner");
+  assert.equal(config.getConfig().apiBase, "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api", "an override requires an owner");
 
   config.setApiBase("https://staging.rift.baby/api", "834869554798395392");
   assert.equal(config.getConfig().apiBase, "https://staging.rift.baby/api");
 
   config.clearApiBaseOverride();
-  assert.equal(config.getConfig().apiBase, "https://api.rift.baby:24633/api");
+  assert.equal(config.getConfig().apiBase, "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api");
 
   // A hand-written override owned by a non-developer is ignored.
   globalThis.localStorage.setItem("rift_api_base", "https://attacker.example/api");
   globalThis.localStorage.setItem("rift_api_base_owner", "900000000000000001");
-  assert.equal(config.getConfig().apiBase, "https://api.rift.baby:24633/api");
+  assert.equal(config.getConfig().apiBase, "https://desktop-mo3r1pj.tailb9e0a9.ts.net/api");
 });
