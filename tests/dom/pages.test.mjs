@@ -7,6 +7,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createHarness, installDom, mountPage, flush } from "./harness.mjs";
+import { SETTINGS_SECTIONS } from "../../assets/app/data/settings-schema.js";
 
 installDom();
 const browserErrors = [];
@@ -130,6 +131,43 @@ test("settings edits dirty the save bar, save to the bot, and survive a reload",
   await flush(8);
   assert.equal(document.querySelector('input[type="checkbox"]').checked, false, "reload reads the saved value");
   second.cleanup?.();
+});
+
+test("every settings section renders a complete, saveable form", async () => {
+  const harness = createHarness();
+  const readOnly = new Set(["autoresponder", "reaction_roles", "giveaways"]);
+  for (const section of SETTINGS_SECTIONS) {
+    freshRoot();
+    const { cleanup } = await mountPage("assets/app/pages/settings.js", harness, {
+      path: `/g/${harness.guild.id}/settings/${section.key}`,
+      params: { guildId: harness.guild.id, section: section.key },
+      query: {},
+      route: { title: section.title },
+    });
+    await flush(3);
+    const root = document.getElementById("root");
+    assertCleanText(root);
+    assert.ok(root.textContent.includes(section.title), `${section.key} shows its title`);
+    assert.equal(
+      !!document.querySelector("[data-save]"),
+      !readOnly.has(section.key),
+      `${section.key} ${readOnly.has(section.key) ? "is read-only" : "can be saved"}`
+    );
+    cleanup?.();
+  }
+});
+
+test("not-found page renders a helpful 404", async () => {
+  const harness = createHarness();
+  freshRoot();
+  await mountPage("assets/app/pages/notfound.js", harness, {
+    path: "/this-page-does-not-exist",
+    params: {},
+    query: {},
+  });
+  await flush(2);
+  assert.match(document.getElementById("root").textContent, /page doesn.t exist/i);
+  assertCleanText(document.getElementById("root"));
 });
 
 test("moderation user lookup renders a dossier", async () => {
