@@ -356,16 +356,28 @@ test("verification success and flag paths both render", async () => {
   flaggedDom.window.close();
 });
 
-test("API host controls and diagnostics stay behind the developer allow-list", async () => {
+test("Developer tools are available to everyone while API host editing is owner-only", async () => {
   installDom();
   const normal = createHarness();
   freshRoot();
   let mounted = await mountPage("assets/app/pages/me.js", normal, { path: "/me", params: {}, query: {} });
   await flush(6);
   let text = document.getElementById("root").textContent;
-  assert.equal(text.includes("Developer tools"), false, "regular accounts never see developer tools");
+  assert.match(text, /Developer tools/, "regular accounts can opt into developer tools");
+  assert.match(text, /Enable developer tools/, "the opt-in switch is visible to everyone");
   assert.equal(text.includes("API base URL"), false, "regular accounts never see the API host");
   assert.equal(text.includes("api.test"), false, "the API host is not rendered");
+
+  let developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
+  assert.ok(developerCard, "developer card is present for a regular account");
+  developerCard.querySelector('input[role="switch"]').click();
+  await flush(3);
+  assert.equal(normal.prefs.get().showDeveloperTools, true, "the opt-in is stored per account");
+  text = document.getElementById("root").textContent;
+  assert.match(text, /API host changes are restricted/, "regular accounts are told who manages the host");
+  assert.equal(text.includes("API base URL"), false, "enabling developer tools does not reveal the API host");
+  assert.equal(text.includes("api.test"), false, "enabling developer tools does not print the API host");
+  assert.match(text, /Open diagnostics/, "regular accounts get diagnostics after opting in");
   mounted.cleanup?.();
 
   freshRoot();
@@ -385,22 +397,21 @@ test("API host controls and diagnostics stay behind the developer allow-list", a
   assert.equal(text.includes("API base URL"), false);
   mounted.cleanup?.();
 
+  installDom();
   const developer = createHarness({ userId: "834869554798395392" });
   freshRoot();
   mounted = await mountPage("assets/app/pages/me.js", developer, { path: "/me", params: {}, query: {} });
   await flush(6);
   text = document.getElementById("root").textContent;
-  assert.match(text, /Developer tools/, "allow-listed developers can open account tools");
-  assert.match(text, /Enable developer tools/, "developer tools are opt-in");
-  assert.equal(text.includes("API base URL"), false, "the host editor is hidden until a developer opts in");
+  assert.match(text, /Developer tools/, "allow-listed developers get the same opt-in");
+  assert.equal(text.includes("API base URL"), false, "the host editor is hidden until the developer opts in");
 
-  const developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
-  assert.ok(developerCard, "developer card is present");
+  developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
   developerCard.querySelector('input[role="switch"]').click();
   await flush(3);
-  assert.equal(developer.prefs.get().showDeveloperTools, true, "switch persists the developer opt-in");
+  assert.equal(developer.prefs.get().showDeveloperTools, true);
   text = document.getElementById("root").textContent;
-  assert.match(text, /API base URL/, "opting in reveals the API host editor");
+  assert.match(text, /API base URL/, "opting in reveals the host editor to the owner");
   assert.ok(document.querySelector("input.mono"), "the host field is a real input");
   mounted.cleanup?.();
 });

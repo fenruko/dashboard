@@ -28,8 +28,9 @@ backend and no placeholder data in production.
 - **Operations** — diagnostics (API latency, breaker, sockets, cache), command
   palette (`⌘K`), keyboard shortcuts, themes, density, reduced motion,
   auto-refresh preferences, offline/session-expired handling and toasts. The
-  API host is never exposed on Diagnostics: changing it is an opt-in tool for
-  allow-listed developers only (fenruko by default).
+  API host is never exposed on Diagnostics. Developer tools (Diagnostics and
+  connection checks) are opt-in for every account; only allow-listed developers
+  (fenruko by default) can change the host itself.
 
 ## Run it
 

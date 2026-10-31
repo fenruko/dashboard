@@ -40,6 +40,7 @@ export async function mountPage(ctx) {
   });
 
   function developerCard() {
+    const owner = isDeveloperUserId(session.user?.id);
     const result = h("div");
     const input = textInput({
       value: apiDraft,
@@ -50,7 +51,7 @@ export async function mountPage(ctx) {
     });
 
     async function testHost() {
-      const base = normalizeBase(apiDraft);
+      const base = normalizeBase(owner ? apiDraft : getConfig().apiBase);
       clear(result);
       if (!base) {
         result.append(callout({ tone: "danger", children: "Enter an API URL first." }));
@@ -108,11 +109,11 @@ export async function mountPage(ctx) {
     const enabled = Boolean(prefs.get().showDeveloperTools);
     return card({
       title: "Developer tools",
-      subtitle: "Restricted to allow-listed Rift developers.",
+      subtitle: "Optional diagnostics and connection tools for this device.",
       children: [
         switchControl({
           label: "Enable developer tools",
-          description: "Opt in on this account to reveal the API host editor and diagnostics on this device.",
+          description: "Reveal Diagnostics and connection checks in this browser. Available to every account.",
           checked: enabled,
           onChange: (value) => {
             prefs.set({ showDeveloperTools: value });
@@ -120,12 +121,21 @@ export async function mountPage(ctx) {
           },
         }),
         enabled &&
-          callout({
-            tone: "warning",
-            title: "Changing the API host is restricted",
-            children: "Only fenruko and any IDs added to developerUserIds in config.js can point this browser at another bot API. The host is never shown on Diagnostics.",
-          }),
+          callout(
+            owner
+              ? {
+                  tone: "warning",
+                  title: "Changing the API host is restricted",
+                  children: "Only fenruko and any IDs added to developerUserIds in config.js can point this browser at another bot API. The host is never shown on Diagnostics.",
+                }
+              : {
+                  tone: "info",
+                  title: "API host changes are restricted",
+                  children: "The bot API host is managed by fenruko. Developer tools give you Diagnostics and connection checks; the host itself stays unchanged.",
+                }
+          ),
         enabled &&
+          owner &&
           field({
             label: "API base URL",
             help: "Include /api. Stored in this browser only and tied to your Discord account.",
@@ -138,6 +148,13 @@ export async function mountPage(ctx) {
               button({ label: "Reset", variant: "ghost", onClick: resetHost })
             ),
           }),
+        enabled &&
+          !owner &&
+          h(
+            "div",
+            { class: "row", style: "margin-top:10px" },
+            button({ label: "Test connection", icon: "activity", onClick: testHost })
+          ),
         enabled && result,
         enabled &&
           h(
@@ -152,6 +169,7 @@ export async function mountPage(ctx) {
   function render() {
     const p = prefs.get();
     const developer = isDeveloperUserId(session.user?.id);
+    const developerTools = Boolean(p.showDeveloperTools);
     clear(content);
     content.append(
       grid(
@@ -303,7 +321,7 @@ export async function mountPage(ctx) {
           h(
             "div",
             { class: "row", style: "margin-top:12px;flex-wrap:wrap" },
-            developer && button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") }),
+            developerTools && button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") }),
             button({
               label: "Clear local caches",
               icon: "trash",
@@ -319,7 +337,7 @@ export async function mountPage(ctx) {
           ),
         ],
       }),
-      ...(developer ? [developerCard()] : [])
+      developerCard()
     );
   }
 

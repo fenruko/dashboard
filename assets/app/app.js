@@ -239,7 +239,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
 
   function buildShell(ctx) {
     const session = auth.get();
-    const developer = isDeveloperUserId(session.user?.id);
+    const developer = Boolean(prefs.get().showDeveloperTools);
     const guild = ctx?.params?.guildId ? auth.guildById(ctx.params.guildId) : null;
     const navItems = guild ? NAV_MAIN.map((item) => ({ ...item, href: guildPath(guild.id, item.path) })) : [];
     const settingsGroups = guild ? settingsNav() : [];
@@ -495,9 +495,9 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         });
         return;
       }
-      if (route?.developer && !isDeveloperUserId(session.user?.id)) {
-        toast.warning("Diagnostics are only available to Rift developers.", { title: "Restricted" });
-        router.replace("/guilds");
+      if (route?.developer && !prefs.get().showDeveloperTools) {
+        toast.warning("Turn on Developer tools in Account to open Diagnostics.", { title: "Developer tools are off" });
+        router.replace("/me");
         return;
       }
     }
@@ -668,7 +668,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         items.push({ group: `Settings · ${titleCase(section.group)}`, label: section.title, icon: section.icon, sub: section.key, run: () => router.navigate(guildPath(guild.id, `settings/${section.key}`)) });
       }
     }
-    const developer = isDeveloperUserId(session.user?.id);
+    const developer = Boolean(prefs.get().showDeveloperTools);
     for (const action of paletteActions) {
       if (!developer && (action.id === "status" || action.id === "copy-diag")) continue;
       items.push({ group: "Actions", ...action });
@@ -906,6 +906,25 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     if (changed && appStore.get().ready) {
       renderBanners(router.getCurrent(), router.getCurrent()?.params?.guildId ? auth.guildById(router.getCurrent().params.guildId) : null);
     }
+  });
+
+  // The Diagnostics links depend on an account preference, so rebuild the
+  // shell when a user opts in or out. Hydrated preferences take effect too.
+  let lastDeveloperTools = prefs.get().showDeveloperTools;
+  prefs.subscribe((next) => {
+    if (next.showDeveloperTools === lastDeveloperTools) return;
+    lastDeveloperTools = next.showDeveloperTools;
+    if (!appStore.get().ready || !shellEls) return;
+    const current = router.getCurrent();
+    if (!lastDeveloperTools && current?.route?.developer) {
+      router.replace("/me");
+      return;
+    }
+    const scroll = window.scrollY;
+    buildShell(current);
+    renderBanners(current, current?.params?.guildId ? auth.guildById(current.params.guildId) : null);
+    renderRoute(current);
+    requestAnimationFrame(() => window.scrollTo(0, scroll));
   });
 
   appStore.subscribe((state, meta) => {
