@@ -1165,14 +1165,32 @@ export function fieldError(container, message) {
   container.classList.toggle("has-error", Boolean(message));
 }
 
+/* One shared ticker for every <time> made by relativeTime(). The old
+ * per-element interval relied on DOMNodeRemovedFromDocument, which browsers
+ * removed, so each render leaked a timer forever. Detached nodes are now
+ * pruned on the next tick and the timer stops when none are left. */
+const liveTimes = new Set();
+let liveTimesTimer = null;
+
+function tickLiveTimes() {
+  if (typeof document !== "undefined" && document.hidden) return;
+  for (const el of liveTimes) {
+    if (!el.isConnected) liveTimes.delete(el);
+    else el.textContent = fmtRelative(el._relativeValue);
+  }
+  if (!liveTimes.size && liveTimesTimer) {
+    clearInterval(liveTimesTimer);
+    liveTimesTimer = null;
+  }
+}
+
 export function relativeTime(value) {
-  const time = h("time", { datetime: new Date(typeof value === "number" && value < 1e12 ? value * 1000 : value).toISOString() });
-  const update = () => {
-    time.textContent = fmtRelative(value);
-  };
-  update();
-  const id = setInterval(update, 30_000);
-  time.addEventListener("DOMNodeRemovedFromDocument", () => clearInterval(id), { once: true });
+  const date = new Date(typeof value === "number" && value < 1e12 ? value * 1000 : value);
+  const time = h("time", { datetime: date.toISOString(), title: date.toLocaleString() });
+  time._relativeValue = value;
+  time.textContent = fmtRelative(value);
+  liveTimes.add(time);
+  if (!liveTimesTimer) liveTimesTimer = setInterval(tickLiveTimes, 30_000);
   return time;
 }
 

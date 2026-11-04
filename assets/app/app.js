@@ -289,7 +289,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         : h(
             "a",
             { class: "guild-switch", href: "/guilds" },
-            h("span", { class: "brand-mark", style: "width:32px;height:32px;font-size:14px" }, "◇"),
+            h("img", { class: "brand-mark brand-logo", src: "/assets/riftlogo.jpg", alt: "", width: 32, height: 32, style: "width:32px;height:32px;border-radius:9px" }),
             h("span", { class: "guild-switch-text" }, h("span", { class: "guild-switch-name" }, "Your servers"), h("span", { class: "guild-switch-sub" }, `${fmtInt(session.guilds.length)} available`)),
             icon("chevron-down", { size: 14 })
           ),
@@ -617,7 +617,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       h(
         "div",
         { class: "boot", role: "status", "aria-live": "polite" },
-        h("div", { class: "boot-mark", "aria-hidden": "true" }, "R"),
+        h("img", { class: "boot-logo", src: "/assets/riftlogo.jpg", alt: "", width: 64, height: 64 }),
         h("p", null, "Restoring your session…"),
         spinner({ size: 18 })
       )

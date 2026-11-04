@@ -113,7 +113,7 @@ export async function mountPage(ctx) {
             "div",
             { class: "guild-card-badges" },
             guild.owner ? badge({ label: "Owner", tone: "warning", icon: "crown" }) : badge({ label: "Manage Server", tone: "neutral", icon: "key" }),
-            guild.botPresent === false ? badge({ label: "Rift not added", tone: "danger", dot: true }) : guild.botPresent ? badge({ label: "Live", tone: "success", dot: true }) : badge({ label: "Presence unknown", tone: "muted", dot: true }),
+            guild.botPresent === false ? badge({ label: "Rift not added", tone: "danger", dot: true }) : guild.botPresent ? null : badge({ label: "Presence unknown", tone: "muted", dot: true }),
             String(lastId) === guild.id ? badge({ label: "Last opened", tone: "accent" }) : null
           )
         )

@@ -196,6 +196,8 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
   const random = lcg(seed);
   const startedAt = Date.now() - 1000 * 60 * 60 * 27;
   const settingsStore = new Map();
+  const toolStore = new Map(); // guildId -> { giveaways, panels, responders } for the record-level editors
+  let toolCounter = 400;
   const prefsStore = new Map();
   const playlistsStore = new Map();
   const attachments = new Map();
@@ -291,6 +293,36 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
       { title: "Static Bloom", url: "https://example.com/tracks/static-bloom", duration: 203, artist: "Aster" },
     ] },
   ]);
+
+  function getTools(guildId) {
+    if (!toolStore.has(guildId)) {
+      const hour = 3600;
+      toolStore.set(guildId, {
+        giveaways: [
+          { message_id: "800000000000000201", channel_id: "200000000000000102", host_id: DEMO_USER_ID, host_name: "Nova", prize: "Nitro Classic (1 month)", winner_count: 1, end_time: nowSeconds() + hour, status: "active", entrants: 214, winners: [], requirements: { roles: [ROLES[4].id] }, rewards: { role_id: null, new_nick: null } },
+          { message_id: "800000000000000202", channel_id: "200000000000000102", host_id: DEMO_USER_ID, host_name: "Iris", prize: "Steam key", winner_count: 2, end_time: nowSeconds() + 24 * hour, status: "active", entrants: 89, winners: [], requirements: { roles: [] }, rewards: { role_id: ROLES[5].id, new_nick: null } },
+          { message_id: "800000000000000203", channel_id: "200000000000000101", host_id: DEMO_USER_ID, host_name: "Nova", prize: "Server boost", winner_count: 1, end_time: nowSeconds() - 3 * 24 * hour, status: "ended", entrants: 3, winners: [MEMBERS[0].id], requirements: { roles: [] }, rewards: { role_id: null, new_nick: null } },
+        ],
+        panels: [
+          { message_id: "800000000000000301", channel_id: "200000000000000101", title: "Pick your roles", description: "Choose what you want to be pinged for.", style: "dropdown", created_by: DEMO_USER_ID, created_at: nowSeconds() - 5 * 24 * hour,
+            options: [{ role_id: ROLES[4].id, label: "Members", emoji: "🎮", desc: "Game nights", color: "blurple" }, { role_id: ROLES[5].id, label: "Boosters", emoji: "💎", desc: "", color: "blurple" }] },
+        ],
+        responders: [
+          { trigger: "help", response: "Open a ticket with /ticket.", role_id: null, exclusive: true },
+          { trigger: "rules", response: "Read the rules in <#200000000000000103>, {user}!", role_id: null, exclusive: false },
+        ],
+      });
+    }
+    return toolStore.get(guildId);
+  }
+
+  function parseDuration(value) {
+    if (typeof value === "number") return value >= 10 && value <= 30 * 86400 ? Math.floor(value) : null;
+    const match = /^\s*(\d+)\s*([smhdw]?)\s*$/i.exec(String(value ?? ""));
+    if (!match) return null;
+    const seconds = Number(match[1]) * { "": 1, s: 1, m: 60, h: 3600, d: 86400, w: 604800 }[match[2].toLowerCase()];
+    return seconds >= 10 && seconds <= 30 * 86400 ? seconds : null;
+  }
 
   function getGuildSettings(guildId) {
     if (!settingsStore.has(guildId)) settingsStore.set(guildId, seedSettings(guildId));
@@ -468,6 +500,179 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
         messages: dates.map(() => Math.round((700 + rng() * 1400) * scale)),
         voice: dates.map(() => Math.round((160 + rng() * 320) * scale)),
       });
+    }
+
+    const toolMatch = /^\/guild\/(\d+)\/(giveaways|reaction-roles|autoresponders)(?:\/(.+))?$/.exec(route);
+    if (toolMatch) {
+      if (!auth) return unauthorized();
+      const [, guildId, kind, rest] = toolMatch;
+      if (!GUILDS.some((guild) => guild.id === guildId)) return reply(404, { error: "Guild not found" });
+      const tools = getTools(guildId);
+      const bad = (message, status = 400) => reply(status, { error: message });
+      const text = (value, max) => String(value ?? "").trim().slice(0, max + 1);
+      const roleExists = (id) => ROLES.some((role) => role.id === String(id));
+      const sendable = (id) => CHANNELS.some((channel) => channel.id === String(id) && channel.type === "text");
+      const jump = (channelId, messageId) => `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+      const publicGiveaway = (g) => ({ ...json(g), jump_url: jump(g.channel_id, g.message_id) });
+      const publicPanel = (p) => ({ ...json(p), jump_url: jump(p.channel_id, p.message_id) });
+
+      if (kind === "giveaways") {
+        const parts = (rest || "").split("/");
+        const id = parts[0] || null;
+        const action = parts[1] || null;
+        const found = id ? tools.giveaways.find((g) => g.message_id === id) : null;
+        if (!id && upper === "GET") {
+          const active = tools.giveaways.filter((g) => g.status === "active").sort((a, b) => a.end_time - b.end_time);
+          const past = tools.giveaways.filter((g) => g.status !== "active").sort((a, b) => b.end_time - a.end_time);
+          return reply(200, { giveaways: [...active, ...past].map(publicGiveaway) });
+        }
+        if (!id && upper === "POST") {
+          const prize = text(body?.prize, 100);
+          if (!prize || prize.length > 100) return bad("Prize is required and must be 100 characters or fewer");
+          const seconds = parseDuration(body?.duration);
+          if (!seconds) return bad("Duration must be between 10 seconds and 30 days (e.g. 10m, 1h, 2d)");
+          const winners = Number(body?.winner_count ?? 1);
+          if (!Number.isInteger(winners) || winners < 1 || winners > 25) return bad("Winner count must be between 1 and 25");
+          if (!sendable(body?.channel_id)) return bad("Pick a text channel in this server");
+          const required = (body?.requirement_role_ids || []).map(String);
+          if (required.some((role) => !roleExists(role))) return bad("A required role does not exist in this server");
+          if (body?.reward_role_id && !roleExists(body.reward_role_id)) return bad("Reward role: that role does not exist in this server");
+          if (body?.reward_role_id && [ROLES[0].id, ROLES[1].id, ROLES[2].id].includes(String(body.reward_role_id))) return bad("Reward role: Rift will not hand out Owner. It is managed, above Rift's top role, or has moderation permissions.");
+          toolCounter += 1;
+          const giveaway = { message_id: `8000000000000004${String(toolCounter).padStart(2, "0")}`, channel_id: String(body.channel_id), host_id: auth.id ?? DEMO_USER_ID, host_name: DEMO_USER?.username || "You", prize, winner_count: winners, end_time: nowSeconds() + seconds, status: "active", entrants: 0, winners: [], requirements: { roles: required }, rewards: { role_id: body?.reward_role_id ? String(body.reward_role_id) : null, new_nick: text(body?.reward_nickname, 32) || null } };
+          tools.giveaways.push(giveaway);
+          return reply(201, { ok: true, giveaway: publicGiveaway(giveaway) });
+        }
+        if (id && !found) return bad("Giveaway not found", 404);
+        if (id && !action && upper === "PATCH") {
+          if (found.status !== "active") return bad("Only active giveaways can be edited", 409);
+          if (body?.prize !== undefined) {
+            const prize = text(body.prize, 100);
+            if (!prize || prize.length > 100) return bad("Prize is required and must be 100 characters or fewer");
+            found.prize = prize;
+          }
+          if (body?.winner_count !== undefined) {
+            const winners = Number(body.winner_count);
+            if (!Number.isInteger(winners) || winners < 1 || winners > 25) return bad("Winner count must be between 1 and 25");
+            found.winner_count = winners;
+          }
+          if (body?.extend) {
+            const extra = parseDuration(body.extend);
+            if (!extra) return bad("Extension must be between 10 seconds and 30 days");
+            found.end_time = Math.max(found.end_time, nowSeconds()) + extra;
+          }
+          return reply(200, { ok: true, giveaway: publicGiveaway(found) });
+        }
+        if (id && !action && upper === "DELETE") {
+          if (found.status === "active") return bad("Cancel or end this giveaway before deleting it", 409);
+          tools.giveaways = tools.giveaways.filter((g) => g !== found);
+          return reply(200, { ok: true });
+        }
+        if (id && action === "end" && upper === "POST") {
+          if (found.status !== "active") return bad("This giveaway is not active", 409);
+          found.status = "ended";
+          found.end_time = nowSeconds();
+          found.winners = MEMBERS.slice(0, Math.min(found.winner_count, MEMBERS.length, Math.max(found.entrants, 0))).map((member) => member.id);
+          return reply(200, { ok: true, giveaway: publicGiveaway(found) });
+        }
+        if (id && action === "cancel" && upper === "POST") {
+          if (found.status !== "active") return bad("This giveaway is not active", 409);
+          found.status = "cancelled";
+          return reply(200, { ok: true, giveaway: publicGiveaway(found) });
+        }
+        if (id && action === "reroll" && upper === "POST") {
+          if (found.status !== "ended") return bad("Only ended giveaways can be rerolled", 409);
+          if (!found.entrants) return bad("Nobody entered this giveaway", 409);
+          const count = Math.max(1, Math.min(Number(body?.count) || 1, found.winner_count));
+          const fresh = MEMBERS.filter((member) => !found.winners.includes(member.id)).slice(0, count).map((member) => member.id);
+          found.winners = [...found.winners, ...fresh];
+          return reply(200, { ok: true, winners: fresh, giveaway: publicGiveaway(found) });
+        }
+        return bad("Not found", 404);
+      }
+
+      if (kind === "reaction-roles") {
+        const id = rest || null;
+        if (!id && upper === "GET") return reply(200, { panels: tools.panels.slice().sort((a, b) => b.created_at - a.created_at).map(publicPanel) });
+        const parsePanel = () => {
+          const style = String(body?.style || "dropdown").toLowerCase();
+          if (!["dropdown", "buttons"].includes(style)) return { error: "Style must be dropdown or buttons" };
+          const title = text(body?.title || "Self Roles", 256);
+          if (!title || title.length > 256) return { error: "Title is required and must be 256 characters or fewer" };
+          const options = body?.options;
+          if (!Array.isArray(options) || !options.length) return { error: "Add at least one role option" };
+          if (options.length > 25) return { error: "A panel can have at most 25 options" };
+          const seen = new Set();
+          const clean = [];
+          for (const option of options) {
+            const role = ROLES.find((entry) => entry.id === String(option?.role_id));
+            if (!role) return { error: "Option: that role does not exist in this server" };
+            if ([ROLES[0].id, ROLES[1].id, ROLES[2].id].includes(role.id)) return { error: `Option: Rift will not hand out ${role.name}. It is managed, above Rift's top role, or has moderation permissions.` };
+            if (seen.has(role.id)) return { error: `${role.name} is listed twice` };
+            seen.add(role.id);
+            const color = String(option?.color || "blurple").toLowerCase();
+            if (!["blurple", "green", "red", "gray", "grey"].includes(color)) return { error: "Button color must be blurple, green, red or gray" };
+            clean.push({ role_id: role.id, label: text(option?.label || role.name, 50), emoji: text(option?.emoji, 64), desc: text(option?.desc, 100), color });
+          }
+          return { style, title, description: text(body?.description, 2000), options: clean };
+        };
+        if (!id && upper === "POST") {
+          const parsed = parsePanel();
+          if (parsed.error) return bad(parsed.error);
+          if (!sendable(body?.channel_id)) return bad("Pick a text channel in this server");
+          toolCounter += 1;
+          const panel = { message_id: `8000000000000005${String(toolCounter).padStart(2, "0")}`, channel_id: String(body.channel_id), created_by: auth.id ?? DEMO_USER_ID, created_at: nowSeconds(), ...parsed };
+          tools.panels.push(panel);
+          return reply(201, { ok: true, panel: publicPanel(panel) });
+        }
+        const found = id ? tools.panels.find((panel) => panel.message_id === id) : null;
+        if (id && !found) return bad("Panel not found", 404);
+        if (id && upper === "PUT") {
+          const parsed = parsePanel();
+          if (parsed.error) return bad(parsed.error);
+          Object.assign(found, parsed);
+          return reply(200, { ok: true, panel: publicPanel(found) });
+        }
+        if (id && upper === "DELETE") {
+          tools.panels = tools.panels.filter((panel) => panel !== found);
+          return reply(200, { ok: true, message_deleted: true });
+        }
+        return bad("Not found", 404);
+      }
+
+      // autoresponders
+      const serialize = () => tools.responders.slice().sort((a, b) => a.trigger.localeCompare(b.trigger)).map((entry) => json(entry));
+      const trigger = rest ? decodeURIComponent(rest).toLowerCase() : null;
+      const parseResponder = (name) => {
+        const clean = text(name, 100).toLowerCase();
+        if (!clean || clean.length > 100) return { error: "Trigger is required and must be 100 characters or fewer" };
+        const response = text(body?.response, 2000);
+        if (!response || response.length > 2000) return { error: "Response is required and must be 2000 characters or fewer" };
+        if (body?.role_id && !roleExists(body.role_id)) return { error: "That role does not exist in this server" };
+        return { trigger: clean, response, role_id: body?.role_id ? String(body.role_id) : null, exclusive: Boolean(body?.exclusive) };
+      };
+      if (!trigger && upper === "GET") return reply(200, { responders: serialize() });
+      if (!trigger && upper === "POST") {
+        const parsed = parseResponder(body?.trigger);
+        if (parsed.error) return bad(parsed.error);
+        if (tools.responders.some((entry) => entry.trigger === parsed.trigger)) return bad("A responder with that trigger already exists. Edit it instead.", 409);
+        if (tools.responders.length >= 100) return bad("This server already has 100 auto-responders", 409);
+        tools.responders.push(parsed);
+        return reply(201, { ok: true, responders: serialize() });
+      }
+      const existing = trigger ? tools.responders.find((entry) => entry.trigger === trigger) : null;
+      if (trigger && !existing) return bad("Auto-responder not found", 404);
+      if (trigger && upper === "PUT") {
+        const parsed = parseResponder(trigger);
+        if (parsed.error) return bad(parsed.error);
+        Object.assign(existing, parsed);
+        return reply(200, { ok: true, responders: serialize() });
+      }
+      if (trigger && upper === "DELETE") {
+        tools.responders = tools.responders.filter((entry) => entry !== existing);
+        return reply(200, { ok: true });
+      }
+      return bad("Not found", 404);
     }
 
     const settingsMatch = /^\/guild\/(\d+)\/settings\/([\w-]+)$/.exec(route);
@@ -1098,6 +1303,6 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
     callStateFor: (userId) => callState(currentCall(userId)),
     musicState: () => json(music),
     getGuildSettings, metrics,
-    state: { settingsStore, playlistsStore, attachments, appeals, calls, portfolio, stockState, warnings, notes, bans, verifyTokens, otpStore, bugReports, bugAttachments },
+    state: { settingsStore, toolStore, playlistsStore, attachments, appeals, calls, portfolio, stockState, warnings, notes, bans, verifyTokens, otpStore, bugReports, bugAttachments },
   };
 }

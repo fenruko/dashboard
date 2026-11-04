@@ -812,5 +812,125 @@
    "GET"
   ],
   "source": "audio-api"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/giveaways",
+  "methods": [
+   "GET"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/giveaways",
+  "methods": [
+   "POST"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/giveaways/<int:message_id>",
+  "methods": [
+   "PATCH"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/giveaways/<int:message_id>",
+  "methods": [
+   "DELETE"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/giveaways/<int:message_id>/end",
+  "methods": [
+   "POST"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/giveaways/<int:message_id>/cancel",
+  "methods": [
+   "POST"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/giveaways/<int:message_id>/reroll",
+  "methods": [
+   "POST"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/reaction-roles",
+  "methods": [
+   "GET"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/reaction-roles",
+  "methods": [
+   "POST"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/reaction-roles/<int:message_id>",
+  "methods": [
+   "PUT"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/reaction-roles/<int:message_id>",
+  "methods": [
+   "DELETE"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/autoresponders",
+  "methods": [
+   "GET"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/autoresponders",
+  "methods": [
+   "POST"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/autoresponders/<path:trigger>",
+  "methods": [
+   "PUT"
+  ],
+  "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/autoresponders/<path:trigger>",
+  "methods": [
+   "DELETE"
+  ],
+  "source": "dashboard-tools"
  }
 ]

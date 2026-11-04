@@ -7,8 +7,8 @@ backend and no placeholder data in production.
 - **Live settings** — all 28 `GUILD_SETTINGS_SECTIONS` are editable against the
   same database the bot reads. Strict setters (verification, starboard,
   logging, modmail) carry every required field so a one-field edit cannot wipe
-  the rest; read-only mirrors (giveaways, reaction roles, auto-responders) are
-  labelled and never POST.
+  the rest; giveaways, reaction-role panels and auto-responders are full record editors
+  backed by `utils/dashboard_tools.py` on the bot (create/edit/end/reroll/delete).
 - **Moderation** — log explorer with filters/pagination, bans, member search,
   role list, full user dossiers, warnings/notes and every action the bot
   supports (ban/unban/kick/warn/delwarn/clearwarns/timeout/untimeout/note/nick/
