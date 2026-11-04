@@ -28,6 +28,23 @@ export function createEndpoints(api) {
         idempotencyKey: `settings-${guildId}-${section}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       }),
 
+    /* ---- giveaways / reaction-role panels / auto-responders (utils/dashboard_tools.py) ---- */
+    giveaways: (guildId) => api.get(`/guild/${enc(guildId)}/giveaways`, { retries: 1 }),
+    giveawayCreate: (guildId, payload) => api.post(`/guild/${enc(guildId)}/giveaways`, payload, { retries: 0 }),
+    giveawayEdit: (guildId, messageId, payload) => api.patch(`/guild/${enc(guildId)}/giveaways/${enc(messageId)}`, payload, { retries: 0 }),
+    giveawayEnd: (guildId, messageId) => api.post(`/guild/${enc(guildId)}/giveaways/${enc(messageId)}/end`, {}, { retries: 0 }),
+    giveawayCancel: (guildId, messageId) => api.post(`/guild/${enc(guildId)}/giveaways/${enc(messageId)}/cancel`, {}, { retries: 0 }),
+    giveawayReroll: (guildId, messageId, payload = {}) => api.post(`/guild/${enc(guildId)}/giveaways/${enc(messageId)}/reroll`, payload, { retries: 0 }),
+    giveawayDelete: (guildId, messageId) => api.del(`/guild/${enc(guildId)}/giveaways/${enc(messageId)}`, { retries: 0 }),
+    reactionPanels: (guildId) => api.get(`/guild/${enc(guildId)}/reaction-roles`, { retries: 1 }),
+    reactionPanelCreate: (guildId, payload) => api.post(`/guild/${enc(guildId)}/reaction-roles`, payload, { retries: 0 }),
+    reactionPanelUpdate: (guildId, messageId, payload) => api.put(`/guild/${enc(guildId)}/reaction-roles/${enc(messageId)}`, payload, { retries: 0 }),
+    reactionPanelDelete: (guildId, messageId) => api.del(`/guild/${enc(guildId)}/reaction-roles/${enc(messageId)}`, { retries: 0 }),
+    autoresponders: (guildId) => api.get(`/guild/${enc(guildId)}/autoresponders`, { retries: 1 }),
+    autoresponderCreate: (guildId, payload) => api.post(`/guild/${enc(guildId)}/autoresponders`, payload, { retries: 0 }),
+    autoresponderUpdate: (guildId, trigger, payload) => api.put(`/guild/${enc(guildId)}/autoresponders/${enc(trigger)}`, payload, { retries: 0 }),
+    autoresponderDelete: (guildId, trigger) => api.del(`/guild/${enc(guildId)}/autoresponders/${enc(trigger)}`, { retries: 0 }),
+
     /* ---- moderation ---- */
     modStats: (guildId) => api.get(`/mod/stats/${enc(guildId)}`, { cacheTtl: 15_000 }),
     modLogs: (guildId, params = {}) => api.get(`/mod/logs/${enc(guildId)}`, { params }),

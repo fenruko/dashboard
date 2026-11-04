@@ -30,6 +30,7 @@ import {
   openModal,
   openPicker,
   pageHeader,
+  relativeTime,
   segmentedControl,
   selectInput,
   skeleton,
@@ -54,13 +55,8 @@ import {
 } from "../data/settings-schema.js";
 import { deepClone, deepEqual, diffObjects, fmtInt, fmtRelative, stableStringify } from "../core/format.js";
 import { guildPath } from "../core/router.js";
-
-const CHANNEL_TYPES = {
-  text: ["0", "5", "15", "16"],
-  voice: ["2", "13"],
-  category: ["4"],
-  forum: ["15"],
-};
+import { channelMatches, channelTypeLabel } from "../data/channels.js";
+import { TOOL_EDITORS } from "./settings-tools.js";
 
 export async function mountPage(ctx) {
   const { root, endpoints, guildId, router, toast: notify, api, prefs } = ctx;
@@ -75,6 +71,7 @@ export async function mountPage(ctx) {
   const body = h("div", { class: "stack" });
 
   let raw = null;
+  let fetchedAt = null; // when the bot last answered for this section
   let model = null;
   let values = {};
   let baseline = {};
@@ -85,6 +82,9 @@ export async function mountPage(ctx) {
   let lastSavedAt = 0;
   let syncWarning = null;
   let guildInfo = null;
+  // Record-level editor for giveaways / reaction roles / auto-responders.
+  // It reads guild info through a getter because that loads in parallel.
+  const toolEditor = section.tool ? TOOL_EDITORS[section.tool]({ guildId, getGuildInfo: () => guildInfo, endpoints, notify }) : null;
   let advancedOpen = false;
   let dirty = () => touched.size > 0 || !deepEqual(buildPayload(), buildBaselinePayload());
   let sectionSearch = "";
@@ -102,7 +102,9 @@ export async function mountPage(ctx) {
       ]);
       if (controller.signal.aborted) return;
       raw = response?.data ?? {};
+      fetchedAt = Date.now();
       guildInfo = info;
+      toolEditor?.repaint();
       model = buildSettingsModel(section, raw);
       if (!preserveDraft) {
         values = {};
@@ -222,8 +224,8 @@ export async function mountPage(ctx) {
           const options =
             type === "channel"
               ? (guildInfo?.channels || [])
-                  .filter((channel) => !fieldDef.channelTypes || fieldDef.channelTypes.some((kind) => (CHANNEL_TYPES[kind] || []).includes(String(channel.type))))
-                  .map((channel) => ({ value: channel.id, label: `#${channel.name}`, sub: `type ${channel.type}` }))
+                  .filter((channel) => (fieldDef.channelTypes ? fieldDef.channelTypes.some((kind) => channelMatches(channel, kind)) : !channelMatches(channel, "category")))
+                  .map((channel) => ({ value: channel.id, label: `#${channel.name}`, sub: channelTypeLabel(channel) }))
               : (guildInfo?.roles || []).map((role) => ({ value: role.id, label: `@${role.name}`, sub: role.id }));
           openPicker({
             title: type === "channel" ? "Choose a channel" : "Choose a role",
@@ -343,7 +345,7 @@ export async function mountPage(ctx) {
             onClick: () =>
               openPicker({
                 title: "Notification channel",
-                options: (guildInfo?.channels || []).filter((c) => ["0", "5", "15", "16"].includes(String(c.type))).map((c) => ({ value: c.id, label: `#${c.name}` })),
+                options: (guildInfo?.channels || []).filter((c) => channelMatches(c, "text")).map((c) => ({ value: c.id, label: `#${c.name}` })),
                 value: row.channel_id,
                 onSelect: (value) => {
                   row.channel_id = value;
@@ -446,7 +448,7 @@ export async function mountPage(ctx) {
             },
             icon(candidate.icon, { size: 14 }),
             h("span", null, candidate.title),
-            candidate.mode === "readonly" && h("span", { class: "nav-badge" }, "read"),
+            candidate.mode === "readonly" && !candidate.tool && h("span", { class: "nav-badge" }, "read"),
           )
         );
       }
@@ -496,14 +498,14 @@ export async function mountPage(ctx) {
         h(
           "div",
           null,
-          h("div", { class: "row", style: "gap:8px" }, h("h2", { style: "font-size:19px" }, section.title), section.mode === "readonly" ? badge({ label: "Read-only", tone: "muted", icon: "lock" }) : badge({ label: "Live", tone: "success", dot: true }), configured ? badge({ label: "Configured", tone: "accent" }) : badge({ label: "Not configured", tone: "warning" })),
+          h("div", { class: "row", style: "gap:8px" }, h("h2", { style: "font-size:19px" }, section.title), section.mode === "readonly" && !section.tool ? badge({ label: "Read-only", tone: "muted", icon: "lock" }) : badge({ label: "Live", tone: "success", dot: true }), configured ? badge({ label: "Configured", tone: "accent" }) : badge({ label: "Not configured", tone: "warning" })),
           h("p", { class: "page-head-desc" }, section.description)
         ),
         h(
           "div",
           { class: "row" },
           copyButton({ text: () => JSON.stringify(raw, null, 2), label: "Copy JSON", successMessage: "Section JSON copied" }),
-          button({ label: "Refresh", icon: "refresh", size: "sm", variant: "ghost", onClick: () => load({ preserveDraft: touched.size > 0 ? true : false }) })
+          button({ label: "Refresh", icon: "refresh", size: "sm", variant: "ghost", onClick: () => { load({ preserveDraft: touched.size > 0 ? true : false }); toolEditor?.refresh(); } })
         )
       )
     );
@@ -524,6 +526,8 @@ export async function mountPage(ctx) {
     const form = h("div", { class: "settings-fields" });
     if (section.mode === "socials") {
       form.append(socialsEditor());
+    } else if (section.tool) {
+      form.append(toolEditor.el);
     } else if (section.mode === "readonly") {
       form.append(renderReadonly());
     } else {
@@ -568,7 +572,7 @@ export async function mountPage(ctx) {
         h(
           "div",
           { class: "row", style: "margin-top:10px;gap:10px;flex-wrap:wrap" },
-          h("span", { class: "small muted" }, `Fetched ${raw ? fmtRelative(Date.now()) : "—"} · values are read from the bot's database, not a cached copy.`),
+          h("span", { class: "small muted" }, "Last fetched ", fetchedAt ? relativeTime(fetchedAt) : "—"),
           h("span", { class: "spacer" }),
           button({
             label: "Advanced: edit payload JSON",
@@ -599,13 +603,7 @@ export async function mountPage(ctx) {
   function renderReadonly() {
     const host = h("div", { class: "stack-tight" });
     const dataArray = Object.values(raw || {}).find((value) => Array.isArray(value));
-    if (section.key === "giveaways" && Array.isArray(raw?.giveaways)) {
-      host.append(
-        raw.giveaways.length
-          ? h("div", { class: "stack-tight" }, raw.giveaways.map((giveaway) => h("div", { class: "row", style: "align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)" }, icon("gift", { size: 15 }), h("div", { style: "flex:1" }, h("div", { style: "font-weight:600" }, giveaway.prize || giveaway.name || "Giveaway"), h("div", { class: "small muted" }, `${giveaway.entries ?? "?"} entries · ends ${giveaway.ends_at ? fmtRelative(giveaway.ends_at) : "unknown"}`)), badge({ label: giveaway.ended ? "Ended" : "Active", tone: giveaway.ended ? "muted" : "success" }))))
-          : emptyState({ icon: "gift", title: "No active giveaways", compact: true })
-      );
-    } else if (Array.isArray(dataArray)) {
+    if (Array.isArray(dataArray)) {
       host.append(
         dataArray.length
           ? h("div", { class: "stack-tight" }, dataArray.map((entry) => h("pre", { class: "code-block" }, JSON.stringify(entry, null, 2))))
@@ -618,7 +616,7 @@ export async function mountPage(ctx) {
   }
 
   function renderFooter() {
-    return section.mode === "readonly"
+    return section.mode === "readonly" && !section.tool
       ? callout({
           tone: "info",
           title: "This section is a live mirror",
@@ -790,6 +788,7 @@ export async function mountPage(ctx) {
           notify.success(`${section.title} saved and verified against the bot.`);
         }
         raw = saved;
+        fetchedAt = Date.now();
         model = buildSettingsModel(section, raw);
       } else {
         notify.success(`${section.title} saved.`);
