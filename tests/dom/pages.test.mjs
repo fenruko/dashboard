@@ -162,6 +162,26 @@ test("every settings section renders a complete, saveable form", async () => {
   }
 });
 
+test("giveaways, reaction roles and auto-responders mount their record editors", async () => {
+  const harness = createHarness();
+  const expected = { giveaways: "New giveaway", reaction_roles: "New panel", autoresponder: "New responder" };
+  for (const [key, label] of Object.entries(expected)) {
+    freshRoot();
+    const section = SETTINGS_SECTIONS.find((s) => s.key === key);
+    const { cleanup } = await mountPage("assets/app/pages/settings.js", harness, {
+      path: `/g/${harness.guild.id}/settings/${key}`,
+      params: { guildId: harness.guild.id, section: key },
+      query: {},
+      route: { title: section.title },
+    });
+    await flush(4);
+    const root = document.getElementById("root");
+    assert.match(root.textContent, new RegExp(label, "i"), `${key} shows its "${label}" button`);
+    assert.ok(!root.querySelector(".code-block"), `${key} is not a raw JSON mirror`);
+    cleanup?.();
+  }
+});
+
 test("not-found page renders a helpful 404", async () => {
   const harness = createHarness();
   freshRoot();

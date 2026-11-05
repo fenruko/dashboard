@@ -551,7 +551,12 @@ export async function mountPage(ctx) {
       }
     }
 
-    if (section.mode !== "readonly") {
+    if (section.tool) {
+      // Record editors (giveaways, reaction roles, auto-responders) save per record,
+      // so they mount directly: no settings savebar, and "readonly" only describes
+      // the generic settings API, not this page.
+      formHost.append(form);
+    } else if (section.mode !== "readonly") {
       formHost.append(
         card({
           padding: "none",
