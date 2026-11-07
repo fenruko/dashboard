@@ -174,9 +174,10 @@ export function createHarness({ backend = createDemoBackend(), token = "demo-tok
   };
   const config = { apiBase: API_BASE, apiBaseFallbacks: [], demo: true, siteName: "Rift", discordClientId: "1329184069426348052" };
 
-  function makeCtx({ params = {}, query = {}, path = "/", route = {} } = {}) {
+  function makeCtx({ params = {}, query = {}, path = "/", route = {}, mode } = {}) {
     return {
       root: document.getElementById("root"),
+      mode,
       ctx: { params, query, path, fullPath: path, route, routePath: path },
       api,
       endpoints,

@@ -368,6 +368,20 @@
  },
  {
   "kind": "route",
+  "path": "/api/appeals/me",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/appeals/me/verify",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
   "path": "/api/appeals/upload",
   "methods": [
    "POST",

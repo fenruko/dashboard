@@ -126,6 +126,8 @@ export function createEndpoints(api) {
     prefsSet: (userId, data) => api.post(`/prefs/${enc(userId)}`, data, { retries: 1 }),
 
     /* ---- public ban appeals ---- */
+    appealsMe: () => api.get("/appeals/me", { retries: 1 }),
+    appealsMeVerify: () => api.post("/appeals/me/verify", {}, { retries: 0 }),
     appealsLookup: (userId) => api.post("/appeals/lookup", { user_id: userId }, { retries: 0 }),
     appealsSendOtp: (userId) => api.post("/appeals/send-otp", { user_id: userId }, { retries: 0 }),
     appealsVerifyOtp: (userId, code) => api.post("/appeals/verify-otp", { user_id: userId, code }, { retries: 0 }),

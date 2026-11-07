@@ -23,8 +23,14 @@ backend and no placeholder data in production.
 - **Voice calls** — bridge two servers, share/join codes, live participant and
   duration view with websocket updates.
 - **Verification activity** — fingerprint matches and ban-evasion flags.
-- **Public flows** — ban appeals (OTP → evidence → thread), browser
-  verification, and bug reports with screenshots.
+- **Blacklist appeals** — the home for appealing a Rift bot blacklist
+  (`/appeals`). Signed in with Discord: live status and time remaining, appeal
+  and blacklist history, resume an open appeal, and appeal in one click with no
+  ID or DM code. Signed out: ID → DM code → evidence → thread. A blacklisted
+  account that opens the dashboard gets a "you can't access the dashboard"
+  screen with the time left and the appeal option (the bot also answers 403).
+  Staff review appeals on staff.rift.cool.
+- **Public flows** — browser verification and bug reports with screenshots.
 - **Operations** — diagnostics (API latency, breaker, sockets, cache), command
   palette (`⌘K`), keyboard shortcuts, themes, density, reduced motion,
   auto-refresh preferences, offline/session-expired handling and toasts. The

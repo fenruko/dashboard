@@ -203,6 +203,9 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
   const attachments = new Map();
   const appeals = new Map();
   const appealsByUser = new Map();
+  // userId -> { reason, banned_at, expires_at|null, duration_label|null }
+  const blacklist = new Map();
+  const blacklistHistory = [];
   const otpStore = new Map();
   const verifyTokens = new Map();
   const bugReports = [];
@@ -1167,6 +1170,34 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
       return reply(200, { ok: true });
     }
 
+    if (route === "/appeals/me" && upper === "GET") {
+      if (!auth) return unauthorized();
+      const entry = blacklist.get(auth.id);
+      const expired = entry?.expires_at && entry.expires_at <= nowSeconds();
+      const active = entry && !expired ? entry : null;
+      return reply(200, {
+        user_id: auth.id,
+        blacklist: active
+          ? { blacklisted: true, blocked: true, reason: active.reason, banned_at: active.banned_at, expires_at: active.expires_at || null, duration_label: active.duration_label || null, permanent: !active.expires_at }
+          : { blacklisted: false, blocked: false },
+        appeals: [...appeals.values()].filter((a) => a.user_id === auth.id).sort((a, b) => b.id - a.id).map((a) => ({
+          id: a.id, status: a.status, token: a.token, reason: a.reason.slice(0, 240), created_at: a.created_at, resolved_at: a.resolved_at,
+          message_count: a.messages.length, staff_replied: a.messages.some((m) => m.is_staff), last_activity_at: a.messages[a.messages.length - 1]?.ts || a.created_at,
+        })),
+        history: blacklistHistory.filter((e) => e.user_id === auth.id).sort((a, b) => b.created_at - a.created_at).map(({ user_id, ...rest }) => rest),
+      });
+    }
+    if (route === "/appeals/me/verify" && upper === "POST") {
+      if (!auth) return unauthorized();
+      if (!blacklist.has(auth.id)) return reply(400, { error: "You aren't blacklisted, so there's nothing to appeal." });
+      const existingToken = appealsByUser.get(auth.id);
+      if (existingToken && ["open", "claimed"].includes(appeals.get(existingToken)?.status)) {
+        return reply(409, { error: "You already have an appeal being reviewed.", thread_url: `https://dash.rift.cool/appeals/thread/${existingToken}` });
+      }
+      const token = `vt-${auth.id}-${Math.random().toString(36).slice(2, 10)}`;
+      verifyTokens.set(token, { user_id: auth.id });
+      return reply(200, { verify_token: token });
+    }
     if (route === "/appeals/lookup" && upper === "POST") {
       const raw = String(body?.user_id || "");
       if (!/^\d+$/.test(raw)) return reply(400, { error: "Please enter a valid Discord user ID (numbers only)." });
@@ -1203,7 +1234,7 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
       if (reason.length < 10) return reply(400, { error: "Please explain your appeal in a bit more detail." });
       if (reason.length > 4000) return reply(400, { error: "That's too long -- please keep it under 4000 characters." });
       const existingToken = appealsByUser.get(identity.user_id);
-      if (existingToken && appeals.get(existingToken)?.status === "pending") return reply(409, { error: "You already have an appeal being reviewed. Please wait for staff to respond before submitting another." });
+      if (existingToken && ["open", "claimed"].includes(appeals.get(existingToken)?.status)) return reply(409, { error: "You already have an appeal being reviewed. Please wait for staff to respond before submitting another." });
       const member = MEMBERS.find((entry) => entry.id === identity.user_id) || { id: identity.user_id, name: `User ${identity.user_id}`, username: "appeal_user" };
       appealCounter += 1;
       const token = `appeal-${appealCounter}-${Math.random().toString(36).slice(2, 12)}`;
@@ -1211,14 +1242,14 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
       const record = {
         id: appealCounter, token, user_id: identity.user_id,
         username_snapshot: `${member.username}#0001`, avatar_snapshot: avatarFor(member),
-        reason, evidence: body?.evidence || null, status: "pending", created_at: nowSeconds(), resolved_at: null,
+        reason, evidence: body?.evidence || null, status: "open", created_at: nowSeconds(), resolved_at: null,
         messages: [{ author: `${member.username}#0001`, is_staff: false, text: reason, ts: nowSeconds(), attachment_ids: attachmentIds }],
         evidence_attachment_ids: attachmentIds,
       };
       appeals.set(token, record);
       appealsByUser.set(identity.user_id, token);
       for (const id of attachmentIds) if (attachments.has(String(id))) attachments.get(String(id)).appeal_id = record.id;
-      return reply(200, { status: "submitted", id: record.id, thread_url: `https://staff.rift.cool/appeal/${token}` });
+      return reply(200, { status: "submitted", id: record.id, thread_url: `https://dash.rift.cool/appeals/thread/${token}` });
     }
     const threadMatch = /^\/appeals\/thread\/([A-Za-z0-9_-]+)(?:\/(message|upload))?$/.exec(route);
     if (threadMatch) {
@@ -1303,6 +1334,6 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
     callStateFor: (userId) => callState(currentCall(userId)),
     musicState: () => json(music),
     getGuildSettings, metrics,
-    state: { settingsStore, toolStore, playlistsStore, attachments, appeals, calls, portfolio, stockState, warnings, notes, bans, verifyTokens, otpStore, bugReports, bugAttachments },
+    state: { settingsStore, toolStore, playlistsStore, attachments, appeals, blacklist, blacklistHistory, calls, portfolio, stockState, warnings, notes, bans, verifyTokens, otpStore, bugReports, bugAttachments },
   };
 }

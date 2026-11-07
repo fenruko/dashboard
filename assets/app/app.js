@@ -74,7 +74,7 @@ export function settingsNav() {
 const ROUTES = [
   { path: "/login", page: loginPage, public: true, title: "Sign in" },
   { path: "/verify", page: verifyPage, public: true, title: "Verify" },
-  { path: "/appeals", page: appealsPage, public: true, title: "Ban appeal" },
+  { path: "/appeals", page: appealsPage, public: true, title: "Blacklist appeal" },
   { path: "/appeals/thread/:token", page: appealsPage, public: true, title: "Appeal thread" },
   { path: "/bugreport", page: bugReportPage, public: true, title: "Report a bug" },
   { path: "/guilds", page: guildsPage, title: "Your servers" },
@@ -150,6 +150,35 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     onChange: (ctx) => renderRoute(ctx).catch((err) => renderFatal(err)),
   });
 
+  // Blacklist standing: a blacklisted account can't use the dashboard, it sees
+  // the "blocked" appeals screen instead. The bot enforces this too (403).
+  let standing = { userId: null, blocked: false, loaded: false };
+  async function loadStanding(force = false) {
+    const userId = auth.get().user?.id || null;
+    if (!force && standing.loaded && standing.userId === userId) return standing;
+    let blocked = false;
+    try {
+      const data = await endpoints.appealsMe();
+      blocked = Boolean(data?.blacklist?.blocked);
+    } catch (err) {
+      // A 403 carrying `blacklisted` is the server-side block; anything else
+      // (network, older bot) fails open — the bot still enforces it.
+      blocked = Boolean(err?.status === 403 && err?.payload?.blacklisted);
+    }
+    standing = { userId, blocked, loaded: true };
+    return standing;
+  }
+  async function recheckStanding() {
+    await loadStanding(true);
+    if (!standing.blocked) {
+      live.start();
+      prefs.hydrateFromServer();
+    }
+    const current = router.getCurrent();
+    if (current && !(current.route?.public || current.path.startsWith("/appeals"))) renderRoute(current).catch((err) => renderFatal(err));
+    else router.navigate("/guilds", { replace: true });
+  }
+
   let currentCleanup = null;
   let currentController = null;
   let shellEls = null;
@@ -161,6 +190,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     { id: "guilds", label: "Switch server", icon: "server", run: () => router.navigate("/guilds") },
     { id: "status", label: "Open diagnostics", icon: "terminal", run: () => router.navigate("/status") },
     { id: "me", label: "Account & preferences", icon: "settings", run: () => router.navigate("/me") },
+    { id: "appeals", label: "Blacklist & appeals", icon: "shield", run: () => router.navigate("/appeals") },
     { id: "bugreport", label: "Report a bug", icon: "bug", run: () => router.navigate("/bugreport") },
     {
       id: "copy-diag",
@@ -493,6 +523,17 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
           mode: "gate",
           error: session.error,
         });
+        return;
+      }
+      await loadStanding();
+      if (appStore.get().lastRoute !== ctx.fullPath) return;
+      if (standing.blocked) {
+        const cleanup = await appealsPage.mountPage({
+          root, ctx, auth, config, router, endpoints, api, prefs, live, store: appStore,
+          diagnosticsReport, toast, confirm: confirmDialog, mode: "blocked", recheckStanding,
+        });
+        currentCleanup = typeof cleanup === "function" ? cleanup : cleanup?.dispose;
+        document.title = `Access blocked · ${config.siteName}`;
         return;
       }
       if (route?.developer && !prefs.get().showDeveloperTools) {
@@ -890,14 +931,18 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         clearApiBaseOverride();
         api.setBase(getConfig().apiBase);
       }
-      live.start();
-      prefs.hydrateFromServer();
+      if (standing.userId !== (session.user?.id || null)) standing = { userId: null, blocked: false, loaded: false };
+      if (!standing.blocked) {
+        live.start();
+        prefs.hydrateFromServer();
+      }
       if (changed) {
         const returnTo = auth.consumeReturnTo?.();
         if (returnTo && location.pathname === "/login") router.navigate(returnTo, { replace: true });
       }
     }
     if (session.status === "expired" || session.status === "anonymous") {
+      standing = { userId: null, blocked: false, loaded: false };
       live.stop();
     }
     if (changed && session.status === "expired") {

@@ -53,11 +53,11 @@ test("ban appeal: lookup → OTP → verify → upload → submit → thread →
     attachment_ids: [upload.id],
   });
   assert.equal(submitted.status, "submitted");
-  assert.match(submitted.thread_url, /appeal\//);
+  assert.match(submitted.thread_url, /appeals\/thread\//);
 
   const token = submitted.thread_url.split("/").pop();
   const real = await e.appealsThread(token);
-  assert.equal(real.status, "pending");
+  assert.equal(real.status, "open");
   assert.equal(real.reason.includes("overzealous"), true);
   assert.equal(real.messages[0].ts > 0, true);
   assert.deepEqual(real.evidence_attachment_ids, [upload.id]);

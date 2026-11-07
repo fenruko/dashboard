@@ -337,6 +337,64 @@ test("appeals: identity → OTP → form → submit", async () => {
   cleanup?.();
 });
 
+function blacklistUser(harness, extra = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  harness.backend.state.blacklist.set(harness.user.id, { reason: "Spamming commands", banned_at: now - 3600, expires_at: now + 86400 * 3, duration_label: "3d", ...extra });
+}
+
+test("appeals (signed in): status, one-click appeal without an ID, history and resume", async () => {
+  const harness = createHarness();
+  blacklistUser(harness);
+  freshRoot();
+  const { cleanup } = await mountPage("assets/app/pages/appeals.js", harness, { path: "/appeals", params: {}, query: {} });
+  await flush(10);
+  assert.match(document.body.textContent, /You're blacklisted from Rift/);
+  assert.match(document.body.textContent, /remaining/);
+  assert.match(document.body.textContent, /Spamming commands/);
+  assert.equal(document.querySelector('input[placeholder^="Your Discord user ID"]'), null, "no ID input when signed in");
+
+  clickText("Appeal this blacklist");
+  await flush(10);
+  const reason = document.querySelector('textarea[placeholder^="Explain why"]');
+  assert.ok(reason, "goes straight to the form");
+  typeInto(reason, "I was blacklisted by mistake and would like a human to review it please.");
+  document.querySelector('input[type="checkbox"]').click();
+  await flush(2);
+  clickText("Submit appeal");
+  await flush(15);
+  assert.match(document.body.textContent, /Appeal submitted/);
+  assert.equal([...harness.backend.state.appeals.values()][0].status, "open");
+
+  clickText("Back to my appeals");
+  await flush(10);
+  assert.match(document.body.textContent, /Your appeals/);
+  assert.match(document.body.textContent, /Waiting for staff/);
+  assert.match(document.body.textContent, /Resume appeal/);
+  cleanup?.();
+});
+
+test("appeals (blocked mode): shows the can't-access screen with the time left", async () => {
+  const harness = createHarness();
+  blacklistUser(harness);
+  freshRoot();
+  const { cleanup } = await mountPage("assets/app/pages/appeals.js", harness, { path: "/guilds", params: {}, query: {}, mode: "blocked" });
+  await flush(10);
+  assert.match(document.body.textContent, /You can't access the dashboard/);
+  assert.match(document.body.textContent, /remaining/);
+  assert.match(document.body.textContent, /Appeal this blacklist/);
+  cleanup?.();
+});
+
+test("appeals (signed in, good standing): no blacklist, nothing to appeal", async () => {
+  const harness = createHarness();
+  freshRoot();
+  const { cleanup } = await mountPage("assets/app/pages/appeals.js", harness, { path: "/appeals", params: {}, query: {} });
+  await flush(10);
+  assert.match(document.body.textContent, /good standing/i);
+  assert.equal(/Appeal this blacklist/.test(document.body.textContent), false);
+  cleanup?.();
+});
+
 test("bug report form uploads and submits, showing the report id", async () => {
   const harness = createHarness();
   freshRoot();
