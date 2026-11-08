@@ -93,7 +93,7 @@ function normalizeState(raw) {
   const duration = current
     ? toSeconds(current.duration ?? payload.duration) || current.duration || 0
     : 0;
-  const loopRaw = payload.loop ?? payload.loop_mode ?? payload.repeat;
+  const loopRaw = payload.loop ?? payload.loop_mode ?? payload.repeat ?? payload.modes?.repeat;
   const loop =
     typeof loopRaw === "boolean"
       ? loopRaw
@@ -102,14 +102,19 @@ function normalizeState(raw) {
       : LOOP_MODES.includes(String(loopRaw || "").toLowerCase())
         ? String(loopRaw).toLowerCase()
         : "off";
-  let volume = readNumber(payload.volume, payload.vol, 100) ?? 100;
-  if (volume > 100) volume /= 10;
+  /* The audio API reports volume as a fraction of 100% (0–2.0, so 1.0 is
+   * 100%); older/demo backends send a plain percentage. Anything up to 2 is
+   * treated as a fraction. Reading the fraction as a percent was what made the
+   * slider sit at 1% whenever the bot was at its normal volume. */
+  let volume = readNumber(payload.volume, payload.vol);
+  if (volume == null) volume = 100;
+  else if (volume <= 2) volume *= 100;
   return {
     connected: Boolean(payload.connected ?? payload.in_voice ?? payload.playing ?? current),
     playing: Boolean(payload.playing ?? (payload.paused === false && current)),
     paused: Boolean(payload.paused ?? (payload.playing === false && current)),
-    channelId: readString(payload.channel_id, payload.channel?.id),
-    channelName: readString(payload.channel_name, payload.channel?.name, payload.channel),
+    channelId: readString(payload.channel_id, payload.voice_channel?.id, payload.channel?.id),
+    channelName: readString(payload.channel_name, payload.voice_channel?.name, payload.channel?.name, payload.channel),
     current,
     queue,
     position: clamp(position, 0, duration || Number.MAX_SAFE_INTEGER),
@@ -138,6 +143,11 @@ export async function mountPage(ctx) {
   let pollTimer = null;
   let searchTimer = null;
   let requestSeq = 0;
+
+  /* The volume slider is built once and updated in place. Rebuilding it on every
+   * render (poll, busy flag, control response) tore it out from under the
+   * user's finger mid-drag and snapped it back to the last polled value. */
+  const volumeUi = { input: null, label: null, dragging: false, pending: false, timer: null };
 
   const state = {
     loading: true,
@@ -264,6 +274,68 @@ export async function mountPage(ctx) {
     liveBadge.replaceWith((liveBadge = badge({ label: text, tone, dot: true })));
   }
 
+  function renderVolume(music) {
+    if (!volumeUi.input) {
+      const input = h("input", {
+        type: "range",
+        min: "0",
+        max: "100",
+        step: "1",
+        value: "100",
+        "aria-label": "Volume",
+      });
+      const label = h("span", null, "100%");
+      volumeUi.input = input;
+      volumeUi.label = label;
+
+      const release = () => {
+        volumeUi.dragging = false;
+      };
+      on(input, "pointerdown", () => {
+        volumeUi.dragging = true;
+      });
+      on(input, "pointerup", release);
+      on(input, "pointercancel", release);
+      on(input, "blur", release);
+      on(input, "input", () => {
+        label.textContent = `${input.value}%`;
+      });
+      /* `change` fires on release (and per keyboard step). Debounce so holding an
+       * arrow key doesn't hammer the Lavalink node, which is already rate limited. */
+      on(input, "change", () => {
+        volumeUi.dragging = false;
+        volumeUi.pending = true;
+        clearTimeout(volumeUi.timer);
+        volumeUi.timer = setTimeout(async () => {
+          const target = Number(input.value);
+          try {
+            await sendControl("volume", { volume: target }, "volume");
+          } catch {
+            /* sendControl already toasted; snap back to what the bot really has */
+            input.value = String(Math.round(state.music.volume));
+            label.textContent = `${input.value}%`;
+          } finally {
+            volumeUi.pending = false;
+          }
+        }, 150);
+      });
+    }
+
+    if (!volumeRow.contains(volumeUi.input)) {
+      clear(volumeRow);
+      volumeRow.append(icon("volume-2", { size: 14 }), volumeUi.input, volumeUi.label);
+    }
+
+    volumeUi.input.disabled = !music.connected;
+    /* Never overwrite the slider while the user is dragging it or while their
+     * change is still in flight; the next poll after that will sync it. */
+    if (!volumeUi.dragging && !volumeUi.pending) {
+      const value = String(Math.round(music.volume));
+      if (volumeUi.input.value !== value) volumeUi.input.value = value;
+      volumeUi.label.textContent = `${value}%`;
+    }
+  }
+
   function renderPlayer() {
     const music = state.music;
     if (state.loading) {
@@ -313,7 +385,7 @@ export async function mountPage(ctx) {
           "div",
           { class: "player-meta" },
           h("div", { class: "player-title" }, music.connected ? "Idle" : "Not connected"),
-          h("div", { class: "player-artist" }, music.connected ? "Queue a track to start playing." : "The bot isn't in a voice channel. Join one, then use /play or the search above."),
+          h("div", { class: "player-artist" }, music.connected ? "Queue a track to start playing." : "Join a voice channel in Discord, then play something here. The bot will join you."),
           music.channelName ? h("div", { class: "row", style: "margin-top:8px" }, badge({ label: `#${music.channelName}`, tone: "neutral" })) : null
         )
       );
@@ -404,22 +476,7 @@ export async function mountPage(ctx) {
       )
     );
 
-    clear(volumeRow);
-    const volume = h("input", {
-      type: "range",
-      min: "0",
-      max: "100",
-      step: "1",
-      value: String(Math.round(music.volume)),
-      "aria-label": "Volume",
-      disabled: !music.connected,
-    });
-    const volumeLabel = h("span", null, `${Math.round(music.volume)}%`);
-    on(volume, "input", () => {
-      volumeLabel.textContent = `${volume.value}%`;
-    });
-    on(volume, "change", () => sendControl("volume", { volume: Number(volume.value) }));
-    volumeRow.append(icon("volume-2", { size: 14 }), volume, volumeLabel);
+    renderVolume(music);
 
     const badges = playerCard.querySelector("#player-badges");
     if (badges) {
@@ -804,10 +861,6 @@ export async function mountPage(ctx) {
   }
 
   async function playPlaylist(name) {
-    if (!state.music.connected) {
-      notify.warning("The bot isn't in a voice channel yet");
-      return;
-    }
     state.playlists.busy = `play:${name}`;
     renderPlaylists();
     try {
@@ -894,10 +947,9 @@ export async function mountPage(ctx) {
   }
 
   async function enqueue(track, playNow) {
-    if (!state.music.connected) {
-      notify.warning("The bot needs to be in a voice channel first");
-      return;
-    }
+    /* No "bot must already be connected" gate: the API joins the voice channel
+     * the signed-in member is in. If they're in none, it answers
+     * "Join a voice channel first" and sendControl toasts that. */
     const query = track.uri || `${track.title} ${track.author || ""}`.trim();
     try {
       await sendControl(playNow ? "play" : "queue", { query, uri: track.uri || undefined, title: track.title });
@@ -1150,6 +1202,7 @@ export async function mountPage(ctx) {
     disposed = true;
     clearInterval(pollTimer);
     clearTimeout(searchTimer);
+    clearTimeout(volumeUi.timer);
     document.removeEventListener("visibilitychange", onVisibility);
   };
 }
