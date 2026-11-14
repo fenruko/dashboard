@@ -79,7 +79,7 @@ export async function mountPage(ctx) {
           callout({
             tone: "danger",
             title: "Couldn't reach that host",
-            children: "Check the tunnel, the HTTPS certificate, and WEB_ALLOWED_ORIGINS on the bot.",
+            children: "Check the DNS record, the HTTPS certificate, and WEB_ALLOWED_ORIGINS on the bot.",
           })
         );
       }

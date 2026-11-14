@@ -184,7 +184,7 @@ export function createApiClient({
     const cooldown = Math.min(60_000, breakerCooldown * 2 ** Math.min(attempt, 5));
     breakerUntil = now() + cooldown;
     emit({ type: "breaker-open", until: breakerUntil, cooldown, base: lastBase });
-    // Rotate to the next configured host (e.g. Tailscale -> public tunnel).
+    // Rotate to the next configured host (e.g. primary API -> backup API).
     const list = candidates();
     if (list.length > 1) {
       baseIndex = (baseIndex + 1) % list.length;
@@ -249,8 +249,8 @@ export function createApiClient({
 
     const requestHeaders = {
       Accept: "application/json",
-      // The bot's API is often exposed through ngrok; this skips its warning
-      // interstitial without affecting normal hosts.
+      // Some hosts (ngrok) show an interstitial warning; this skips it
+      // without affecting normal hosts.
       "ngrok-skip-browser-warning": "rift-dashboard",
       ...headers,
     };
