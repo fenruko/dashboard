@@ -28,6 +28,7 @@ import { createEndpoints } from "./data/endpoints.js";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS } from "./data/settings-schema.js";
 import { getConfig, buildInviteUrl, isDeveloperUserId, clearApiBaseOverride } from "./config.js";
 import { copyToClipboard, fmtInt, titleCase } from "./core/format.js";
+import { checkLatestBlogPost, showBlogNotification } from "./ui/blog-notify.js";
 
 import * as loginPage from "./pages/login.js";
 import * as guildsPage from "./pages/guilds.js";
@@ -143,6 +144,10 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       }
     },
   });
+
+  // New blog posts: pushed live, plus one catch-up check per session.
+  live.subscribe("blog_post", (post) => showBlogNotification(post, { apiBase: api.getBase() }));
+  let checkedBlog = false;
 
   const router = createRouter({
     routes: ROUTES,
@@ -935,6 +940,10 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       if (!standing.blocked) {
         live.start();
         prefs.hydrateFromServer();
+        if (!checkedBlog) {
+          checkedBlog = true;
+          checkLatestBlogPost({ apiBase: api.getBase() });
+        }
       }
       if (changed) {
         const returnTo = auth.consumeReturnTo?.();
