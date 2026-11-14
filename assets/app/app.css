@@ -3342,3 +3342,108 @@ img {
     max-width: none;
   }
 }
+
+/* ---------- blog notification ---------- */
+.blog-notice-root {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 299;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.blog-notice {
+  pointer-events: auto;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 34px 12px 12px;
+  background: var(--bg-elev-2);
+  border: 1px solid var(--line-strong);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  font-size: 12.5px;
+  animation: toast-in 0.18s ease;
+}
+
+.blog-notice.is-leaving { opacity: 0; transform: translateY(4px); transition: all 0.15s ease; }
+
+.blog-notice-thumb {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg-elev-3);
+}
+
+.blog-notice-thumb--empty {
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+}
+
+.blog-notice-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.blog-notice-kicker {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.blog-notice-title {
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+
+.blog-notice-excerpt {
+  color: var(--text-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.blog-notice-link {
+  margin-top: 2px;
+  width: fit-content;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.blog-notice-link:hover { text-decoration: underline; }
+
+.blog-notice-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.blog-notice-close:hover { background: var(--bg-elev-3); color: var(--text); }
+
+@media (max-width: 520px) {
+  .blog-notice-thumb { width: 56px; height: 56px; }
+}
