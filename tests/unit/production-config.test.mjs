@@ -10,7 +10,7 @@ const config = sandbox.window.RIFT_CONFIG;
 
 test("production config targets the live bot API, not a local or demo host", () => {
   assert.equal(typeof config, "object");
-  assert.match(config.apiBase, /^https:\/\/desktop-mo3r1pj\.tailb9e0a9\.ts\.net\/api$/i);
+  assert.match(config.apiBase, /^https:\/\/api\.rift\.cool\/api$/i);
   assert.equal(/localhost|127\.0\.0\.1|0\.0\.0\.0/i.test(config.apiBase), false);
   assert.equal(config.demo, false);
   assert.equal(config.apiBaseFallbacks.length, 0);
