@@ -18,9 +18,25 @@ import {
   toast,
 } from "../ui/components.js";
 import { fmtInt, fmtRelative } from "../core/format.js";
+import { canViewDiagnostics } from "../core/staff-access.js";
 
 export async function mountPage(ctx) {
   const { root, api, auth, live, router, prefs } = ctx;
+
+  // The router already refuses non-staff; this keeps the page itself safe if it
+  // is ever mounted another way.
+  if (!canViewDiagnostics(auth.get())) {
+    mount(
+      root,
+      h(
+        "div",
+        { class: "page" },
+        callout({ tone: "info", title: "Diagnostics is limited to Rift staff", children: "If something looks broken, send a bug report from the sidebar and we'll take a look." })
+      )
+    );
+    return () => clear(root);
+  }
+
   const page = h("div", { class: "page" });
   const content = h("div", { class: "stack" });
   let timer = null;

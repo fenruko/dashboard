@@ -7,6 +7,7 @@
  */
 
 import { createStore } from "./store.js";
+import { fetchStaffPermissions } from "./staff-access.js";
 import { buildLoginUrl, getConfig } from "../config.js";
 
 export const TOKEN_KEY = "rift_dashboard_token";
@@ -218,6 +219,7 @@ export function createAuth({ api, config = getConfig(), fetchImpl = (...a) => fe
       token: readToken(),
       demo: Boolean(config.demo),
       botPresenceKnown: false,
+      staffPermissions: [],
       expiresAt: readTokenExpiry(),
     },
     { name: "auth" }
@@ -234,13 +236,13 @@ export function createAuth({ api, config = getConfig(), fetchImpl = (...a) => fe
     if (inflight) return inflight;
     const token = readToken();
     if (!token) {
-      setStatus("anonymous", { user: null, guilds: [], token: "" });
+      setStatus("anonymous", { user: null, guilds: [], token: "", staffPermissions: [] });
       return null;
     }
     const expiresAt = readTokenExpiry();
     if (expiresAt && Date.now() > expiresAt) {
       clearToken();
-      setStatus("expired", { token: "", user: null, guilds: [], error: new Error("Your Discord session expired. Sign in again.") });
+      setStatus("expired", { token: "", user: null, guilds: [], staffPermissions: [], error: new Error("Your Discord session expired. Sign in again.") });
       return null;
     }
     if (!silent) setStatus("authenticating", { token, error: null });
@@ -259,6 +261,9 @@ export function createAuth({ api, config = getConfig(), fetchImpl = (...a) => fe
           botIds = null;
         }
 
+        // Staff permissions (for Diagnostics). Fails closed to [] on any error.
+        const staffPermissions = await fetchStaffPermissions(api);
+
         const guildsWithPresence = guilds
           .map((guild) => ({
             ...guild,
@@ -274,6 +279,7 @@ export function createAuth({ api, config = getConfig(), fetchImpl = (...a) => fe
           error: null,
           demo: isDemo,
           botPresenceKnown: Boolean(botIds),
+          staffPermissions,
           expiresAt,
         });
         return { user, guilds: guildsWithPresence };
@@ -281,7 +287,7 @@ export function createAuth({ api, config = getConfig(), fetchImpl = (...a) => fe
         if (disposed) return null;
         if (err?.status === 401) {
           clearToken();
-          setStatus("expired", { token: "", user: null, guilds: [], error: err });
+          setStatus("expired", { token: "", user: null, guilds: [], staffPermissions: [], error: err });
         } else {
           setStatus("error", { error: err, token });
         }
@@ -356,7 +362,7 @@ export function createAuth({ api, config = getConfig(), fetchImpl = (...a) => fe
 
   function logout({ redirect = true } = {}) {
     clearToken();
-    setStatus("anonymous", { user: null, guilds: [], token: "", error: null, botPresenceKnown: false });
+    setStatus("anonymous", { user: null, guilds: [], token: "", error: null, botPresenceKnown: false, staffPermissions: [] });
     try {
       localStorage.removeItem(`${storagePrefix}_last_guild`);
     } catch {
@@ -375,7 +381,7 @@ export function createAuth({ api, config = getConfig(), fetchImpl = (...a) => fe
   function onStorage(event) {
     if (event.key !== TOKEN_KEY) return;
     if (!event.newValue && store.get().status === "ready") {
-      setStatus("anonymous", { user: null, guilds: [], token: "" });
+      setStatus("anonymous", { user: null, guilds: [], token: "", staffPermissions: [] });
     } else if (event.newValue && event.newValue !== store.get().token) {
       loadSession();
     }

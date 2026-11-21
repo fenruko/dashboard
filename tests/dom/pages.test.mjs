@@ -434,37 +434,63 @@ test("verification success and flag paths both render", async () => {
   flaggedDom.window.close();
 });
 
-test("Developer tools are available to everyone while API host editing is owner-only", async () => {
+test("Diagnostics and developer tools are limited to Rift staff", async () => {
   installDom();
+  const root = () => document.getElementById("root");
+
+  // A regular account sees no developer tools, no switch and no Diagnostics.
   const normal = createHarness();
   freshRoot();
   let mounted = await mountPage("assets/app/pages/me.js", normal, { path: "/me", params: {}, query: {} });
   await flush(6);
-  let text = document.getElementById("root").textContent;
-  assert.match(text, /Developer tools/, "regular accounts can opt into developer tools");
-  assert.match(text, /Enable developer tools/, "the opt-in switch is visible to everyone");
+  let text = root().textContent;
+  assert.equal(text.includes("Developer tools"), false, "regular accounts get no developer card");
+  assert.equal(text.includes("Enable developer tools"), false, "the opt-in switch is gone for everyone");
+  assert.equal(text.includes("Open diagnostics"), false, "regular accounts get no Diagnostics shortcut");
   assert.equal(text.includes("API base URL"), false, "regular accounts never see the API host");
   assert.equal(text.includes("api.test"), false, "the API host is not rendered");
-
-  let developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
-  assert.ok(developerCard, "developer card is present for a regular account");
-  developerCard.querySelector('input[role="switch"]').click();
-  await flush(3);
-  assert.equal(normal.prefs.get().showDeveloperTools, true, "the opt-in is stored per account");
-  text = document.getElementById("root").textContent;
-  assert.match(text, /API host changes are restricted/, "regular accounts are told who manages the host");
-  assert.equal(text.includes("API base URL"), false, "enabling developer tools does not reveal the API host");
-  assert.equal(text.includes("api.test"), false, "enabling developer tools does not print the API host");
-  assert.match(text, /Open diagnostics/, "regular accounts get diagnostics after opting in");
   mounted.cleanup?.();
 
+  // The Diagnostics page refuses a regular account if it is mounted anyway.
   freshRoot();
   mounted = await mountPage("assets/app/pages/status.js", normal, { path: "/status", params: {}, query: {} });
   await flush(6);
-  text = document.getElementById("root").textContent;
-  assert.equal(text.includes("api.test"), false, "diagnostics never print the API base");
-  assert.equal(/API (base|host)/i.test(text), false, "diagnostics has no API host control");
+  text = root().textContent;
+  assert.match(text, /limited to Rift staff/, "non-staff are told Diagnostics is staff-only");
+  assert.equal(/Endpoint health|Run probes/.test(text), false, "no diagnostics content is rendered for non-staff");
   mounted.cleanup?.();
+
+  // Staff with an unrelated permission are still refused.
+  const otherStaff = createHarness({ staffPermissions: ["economy.view"] });
+  freshRoot();
+  mounted = await mountPage("assets/app/pages/status.js", otherStaff, { path: "/status", params: {}, query: {} });
+  await flush(6);
+  assert.match(root().textContent, /limited to Rift staff/, "only the diagnostics permission opens it");
+  mounted.cleanup?.();
+
+  // Staff holding diagnostics.view (or full access) get the tools, never the host.
+  for (const permissions of [["diagnostics.view"], ["*"]]) {
+    const staff = createHarness({ staffPermissions: permissions });
+    freshRoot();
+    mounted = await mountPage("assets/app/pages/me.js", staff, { path: "/me", params: {}, query: {} });
+    await flush(6);
+    text = root().textContent;
+    assert.match(text, /Developer tools/, `${permissions[0]} shows the developer card`);
+    assert.equal(text.includes("Enable developer tools"), false, "there is no opt-in switch");
+    assert.match(text, /Open diagnostics/, `${permissions[0]} gets the Diagnostics shortcut`);
+    assert.match(text, /API host changes are restricted/, "staff are told who manages the host");
+    assert.equal(text.includes("API base URL"), false, "staff never see the API host editor");
+    mounted.cleanup?.();
+
+    freshRoot();
+    mounted = await mountPage("assets/app/pages/status.js", staff, { path: "/status", params: {}, query: {} });
+    await flush(6);
+    text = root().textContent;
+    assert.equal(text.includes("limited to Rift staff"), false, `${permissions[0]} can open Diagnostics`);
+    assert.equal(text.includes("api.test"), false, "diagnostics never print the API base");
+    assert.equal(/API (base|host)/i.test(text), false, "diagnostics has no API host control");
+    mounted.cleanup?.();
+  }
 
   freshRoot();
   const signedOut = createHarness({ signedOut: true, url: "https://dash.test/login" });
@@ -475,21 +501,16 @@ test("Developer tools are available to everyone while API host editing is owner-
   assert.equal(text.includes("API base URL"), false);
   mounted.cleanup?.();
 
+  // The allow-listed developer keeps access and is the only one who edits the host.
   installDom();
   const developer = createHarness({ userId: "834869554798395392" });
   freshRoot();
   mounted = await mountPage("assets/app/pages/me.js", developer, { path: "/me", params: {}, query: {} });
   await flush(6);
-  text = document.getElementById("root").textContent;
-  assert.match(text, /Developer tools/, "allow-listed developers get the same opt-in");
-  assert.equal(text.includes("API base URL"), false, "the host editor is hidden until the developer opts in");
-
-  developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
-  developerCard.querySelector('input[role="switch"]').click();
-  await flush(3);
-  assert.equal(developer.prefs.get().showDeveloperTools, true);
-  text = document.getElementById("root").textContent;
-  assert.match(text, /API base URL/, "opting in reveals the host editor to the owner");
+  text = root().textContent;
+  assert.match(text, /Developer tools/, "allow-listed developers get the developer card");
+  assert.equal(text.includes("Enable developer tools"), false, "no switch for developers either");
+  assert.match(text, /API base URL/, "the owner sees the host editor");
   assert.ok(document.querySelector("input.mono"), "the host field is a real input");
   mounted.cleanup?.();
 });

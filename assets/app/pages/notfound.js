@@ -1,6 +1,7 @@
 import { h, mount } from "../ui/dom.js";
 import { button, card } from "../ui/components.js";
 import { icon } from "../ui/icons.js";
+import { canViewDiagnostics } from "../core/staff-access.js";
 
 export async function mountPage(ctx) {
   const host = ctx.root;
@@ -14,7 +15,7 @@ export async function mountPage(ctx) {
           "div",
           { class: "row", style: "justify-content:center" },
           button({ label: "Your servers", variant: "primary", icon: "grid", onClick: () => ctx.router.navigate("/guilds") }),
-          button({ label: "Diagnostics", icon: "terminal", onClick: () => ctx.router.navigate("/status") })
+          canViewDiagnostics(ctx.auth?.get?.()) && button({ label: "Diagnostics", icon: "terminal", onClick: () => ctx.router.navigate("/status") })
         ),
       ],
     })

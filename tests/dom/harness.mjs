@@ -90,7 +90,7 @@ export function createFetchAdapter(backend) {
   };
 }
 
-export function createHarness({ backend = createDemoBackend(), token = "demo-token", url, signedOut = false, userId = DEMO_USER.id } = {}) {
+export function createHarness({ backend = createDemoBackend(), token = "demo-token", url, signedOut = false, userId = DEMO_USER.id, staffPermissions = [] } = {}) {
   const effectiveToken = signedOut ? "" : token;
   if (url) installDom({ url });
   else if (!globalThis.window) installDom();
@@ -151,7 +151,7 @@ export function createHarness({ backend = createDemoBackend(), token = "demo-tok
   const prefs = createPreferences({ getUserId: () => (signedOut ? null : user.id) });
   const authState = signedOut
     ? { status: "anonymous", user: null, guilds: [], token: "", demo: true, error: null }
-    : { status: "ready", user, guilds: [guild], token, demo: true };
+    : { status: "ready", user, guilds: [guild], token, demo: true, staffPermissions };
   const authListeners = new Set();
   const auth = {
     get: () => authState,

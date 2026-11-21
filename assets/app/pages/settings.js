@@ -57,9 +57,10 @@ import { deepClone, deepEqual, diffObjects, fmtInt, fmtRelative, stableStringify
 import { guildPath } from "../core/router.js";
 import { channelMatches, channelTypeLabel } from "../data/channels.js";
 import { TOOL_EDITORS } from "./settings-tools.js";
+import { canViewDiagnostics } from "../core/staff-access.js";
 
 export async function mountPage(ctx) {
-  const { root, endpoints, guildId, router, toast: notify, api, prefs } = ctx;
+  const { root, endpoints, guildId, router, toast: notify, api, prefs, auth } = ctx;
   const section = getSection(ctx.ctx.params.section || "automod");
   if (!section) {
     router.replace(guildPath(guildId, "settings/automod"));
@@ -646,8 +647,8 @@ export async function mountPage(ctx) {
             className: "settings-mobile-picker",
             onClick: () => openSectionPicker(),
           }),
-          button({ label: "Diagnostics", icon: "terminal", size: "sm", variant: "ghost", onClick: () => router.navigate("/status") }),
-        ],
+          canViewDiagnostics(auth?.get?.()) && button({ label: "Diagnostics", icon: "terminal", size: "sm", variant: "ghost", onClick: () => router.navigate("/status") }),
+        ].filter(Boolean),
       })
     );
   }

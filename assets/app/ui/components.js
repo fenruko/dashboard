@@ -287,7 +287,7 @@ export function errorState({ error, onRetry, title, compact = false } = {}) {
     error?.message ||
     (offline
       ? "This usually means the bot host is asleep or the tunnel is down. Requests retry automatically."
-      : "Try again. If it keeps happening, open Diagnostics and copy the report.");
+      : "Try again. If it keeps happening, send a bug report from the sidebar.");
   return h(
     "div",
     { class: cx("error-state", compact && "error-state--compact"), role: "alert" },

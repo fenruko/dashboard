@@ -22,6 +22,7 @@ import {
 } from "../ui/components.js";
 import { fmtInt, fmtRelative } from "../core/format.js";
 import { getConfig, normalizeBase, setApiBase, clearApiBaseOverride, isDeveloperUserId } from "../config.js";
+import { canViewDiagnostics } from "../core/staff-access.js";
 
 export async function mountPage(ctx) {
   const { root, auth, prefs, router, endpoints, api } = ctx;
@@ -106,36 +107,24 @@ export async function mountPage(ctx) {
       setTimeout(() => location.reload(), 400);
     }
 
-    const enabled = Boolean(prefs.get().showDeveloperTools);
     return card({
       title: "Developer tools",
-      subtitle: "Optional diagnostics and connection tools for this device.",
+      subtitle: "Diagnostics and connection checks for Rift staff.",
       children: [
-        switchControl({
-          label: "Enable developer tools",
-          description: "Reveal Diagnostics and connection checks in this browser. Available to every account.",
-          checked: enabled,
-          onChange: (value) => {
-            prefs.set({ showDeveloperTools: value });
-            render();
-          },
-        }),
-        enabled &&
-          callout(
-            owner
-              ? {
-                  tone: "warning",
-                  title: "Changing the API host is restricted",
-                  children: "Only fenruko and any IDs added to developerUserIds in config.js can point this browser at another bot API. The host is never shown on Diagnostics.",
-                }
-              : {
-                  tone: "info",
-                  title: "API host changes are restricted",
-                  children: "The bot API host is managed by fenruko. Developer tools give you Diagnostics and connection checks; the host itself stays unchanged.",
-                }
-          ),
-        enabled &&
-          owner &&
+        callout(
+          owner
+            ? {
+                tone: "warning",
+                title: "Changing the API host is restricted",
+                children: "Only fenruko and any IDs added to developerUserIds in config.js can point this browser at another bot API. The host is never shown on Diagnostics.",
+              }
+            : {
+                tone: "info",
+                title: "API host changes are restricted",
+                children: "The bot API host is managed by fenruko. Staff get Diagnostics and connection checks; the host itself stays unchanged.",
+              }
+        ),
+        owner &&
           field({
             label: "API base URL",
             help: "Include /api. Stored in this browser only and tied to your Discord account.",
@@ -148,20 +137,18 @@ export async function mountPage(ctx) {
               button({ label: "Reset", variant: "ghost", onClick: resetHost })
             ),
           }),
-        enabled &&
-          !owner &&
+        !owner &&
           h(
             "div",
             { class: "row", style: "margin-top:10px" },
             button({ label: "Test connection", icon: "activity", onClick: testHost })
           ),
-        enabled && result,
-        enabled &&
-          h(
-            "div",
-            { class: "row", style: "margin-top:10px" },
-            button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") })
-          ),
+        result,
+        h(
+          "div",
+          { class: "row", style: "margin-top:10px" },
+          button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") })
+        ),
       ],
     });
   }
@@ -169,7 +156,7 @@ export async function mountPage(ctx) {
   function render() {
     const p = prefs.get();
     const developer = isDeveloperUserId(session.user?.id);
-    const developerTools = Boolean(p.showDeveloperTools);
+    const developerTools = canViewDiagnostics(session);
     clear(content);
     content.append(
       grid(
@@ -337,7 +324,7 @@ export async function mountPage(ctx) {
           ),
         ],
       }),
-      developerCard()
+      ...(developerTools ? [developerCard()] : [])
     );
   }
 

@@ -27,6 +27,7 @@ import { createPreferences } from "./core/prefs.js";
 import { createEndpoints } from "./data/endpoints.js";
 import { SETTINGS_SECTIONS, SETTINGS_GROUPS } from "./data/settings-schema.js";
 import { getConfig, buildInviteUrl, isDeveloperUserId, clearApiBaseOverride } from "./config.js";
+import { canViewDiagnostics } from "./core/staff-access.js";
 import { copyToClipboard, fmtInt, titleCase } from "./core/format.js";
 import { checkLatestBlogPost, showBlogNotification } from "./ui/blog-notify.js";
 
@@ -274,7 +275,8 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
 
   function buildShell(ctx) {
     const session = auth.get();
-    const developer = Boolean(prefs.get().showDeveloperTools);
+    // Diagnostics is for Rift staff only (see core/staff-access.js).
+    const developer = canViewDiagnostics(session);
     const guild = ctx?.params?.guildId ? auth.guildById(ctx.params.guildId) : null;
     const navItems = guild ? NAV_MAIN.map((item) => ({ ...item, href: guildPath(guild.id, item.path) })) : [];
     const settingsGroups = guild ? settingsNav() : [];
@@ -324,7 +326,6 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         : h(
             "a",
             { class: "guild-switch", href: "/guilds" },
-            h("img", { class: "brand-mark brand-logo", src: "/assets/riftlogo.jpg", alt: "", width: 32, height: 32, style: "width:32px;height:32px;border-radius:9px" }),
             h("span", { class: "guild-switch-text" }, h("span", { class: "guild-switch-name" }, "Your servers"), h("span", { class: "guild-switch-sub" }, `${fmtInt(session.guilds.length)} available`)),
             icon("chevron-down", { size: 14 })
           ),
@@ -541,9 +542,9 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         document.title = `Access blocked · ${config.siteName}`;
         return;
       }
-      if (route?.developer && !prefs.get().showDeveloperTools) {
-        toast.warning("Turn on Developer tools in Account to open Diagnostics.", { title: "Developer tools are off" });
-        router.replace("/me");
+      if (route?.developer && !canViewDiagnostics(session)) {
+        toast.warning("Diagnostics is limited to Rift staff.", { title: "Not available" });
+        router.replace("/guilds");
         return;
       }
     }
@@ -714,7 +715,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         items.push({ group: `Settings · ${titleCase(section.group)}`, label: section.title, icon: section.icon, sub: section.key, run: () => router.navigate(guildPath(guild.id, `settings/${section.key}`)) });
       }
     }
-    const developer = Boolean(prefs.get().showDeveloperTools);
+    const developer = canViewDiagnostics(session);
     for (const action of paletteActions) {
       if (!developer && (action.id === "status" || action.id === "copy-diag")) continue;
       items.push({ group: "Actions", ...action });
@@ -960,25 +961,6 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     if (changed && appStore.get().ready) {
       renderBanners(router.getCurrent(), router.getCurrent()?.params?.guildId ? auth.guildById(router.getCurrent().params.guildId) : null);
     }
-  });
-
-  // The Diagnostics links depend on an account preference, so rebuild the
-  // shell when a user opts in or out. Hydrated preferences take effect too.
-  let lastDeveloperTools = prefs.get().showDeveloperTools;
-  prefs.subscribe((next) => {
-    if (next.showDeveloperTools === lastDeveloperTools) return;
-    lastDeveloperTools = next.showDeveloperTools;
-    if (!appStore.get().ready || !shellEls) return;
-    const current = router.getCurrent();
-    if (!lastDeveloperTools && current?.route?.developer) {
-      router.replace("/me");
-      return;
-    }
-    const scroll = window.scrollY;
-    buildShell(current);
-    renderBanners(current, current?.params?.guildId ? auth.guildById(current.params.guildId) : null);
-    renderRoute(current);
-    requestAnimationFrame(() => window.scrollTo(0, scroll));
   });
 
   appStore.subscribe((state, meta) => {

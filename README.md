@@ -34,9 +34,27 @@ backend and no placeholder data in production.
 - **Operations** — diagnostics (API latency, breaker, sockets, cache), command
   palette (`⌘K`), keyboard shortcuts, themes, density, reduced motion,
   auto-refresh preferences, offline/session-expired handling and toasts. The
-  API host is never exposed on Diagnostics. Developer tools (Diagnostics and
-  connection checks) are opt-in for every account; only allow-listed developers
-  (fenruko by default) can change the host itself.
+  API host is never exposed on Diagnostics. Diagnostics and the
+  connection checks are **staff-only**: they appear for allow-listed developers
+  (fenruko by default) and for Discord accounts whose linked staff account holds
+  the `diagnostics.view` permission (or full access). Everyone else never sees the
+  tab, the palette actions or the Account card, and `/status` redirects away.
+  Only allow-listed developers can change the host itself.
+
+### Staff access route (bot side)
+
+The dashboard asks the bot who the signed-in account is on staff.rift.cool:
+
+```
+GET /api/dashboard/staff-access     (Discord bearer token, like every dashboard call)
+→ { "permissions": ["diagnostics.view", ...] }      // "*" = full access
+```
+
+The bot looks the Discord ID up in the staff accounts' linked `discord_id` and
+returns that account's permissions (an empty list for non-staff). The dashboard
+fails closed: a missing route, an error or a malformed answer means no staff
+access, so until the bot ships this route only allow-listed developers see
+Diagnostics.
 
 ## Run it
 
@@ -56,7 +74,7 @@ window.RIFT_CONFIG = {
   apiBase: "https://your-bot.example.com/api",
   apiBaseFallbacks: ["https://backup.example.com/api"],
   demo: false,
-  developerUserIds: [], // extra Discord IDs allowed to use Account → Developer tools
+  developerUserIds: [], // extra Discord IDs treated as developers (Diagnostics + API host)
   discordClientId: "1329184069426348052",
 };
 ```

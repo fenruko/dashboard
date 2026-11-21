@@ -22,6 +22,7 @@ import { lineChart, barChart } from "../ui/charts.js";
 import { fmtCompact, fmtDuration, fmtInt, fmtRelative, titleCase } from "../core/format.js";
 import { buildInviteUrl } from "../config.js";
 import { guildPath } from "../core/router.js";
+import { canViewDiagnostics } from "../core/staff-access.js";
 
 export async function mountPage(ctx) {
   const { root, endpoints, guild, guildId, router, live, prefs, auth, openInvite } = ctx;
@@ -111,7 +112,7 @@ export async function mountPage(ctx) {
             "div",
             { class: "row", style: "margin-top:12px" },
             button({ label: "All servers", icon: "grid", onClick: () => router.navigate("/guilds") }),
-            button({ label: "Diagnostics", icon: "terminal", onClick: () => router.navigate("/status") })
+            canViewDiagnostics(auth.get()) && button({ label: "Diagnostics", icon: "terminal", onClick: () => router.navigate("/status") })
           ),
         ],
       })
