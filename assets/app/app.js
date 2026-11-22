@@ -173,6 +173,32 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     standing = { userId, blocked, loaded: true };
     return standing;
   }
+  // Diagnostics visibility is decided by the bot (owner, or explicitly added by
+  // the owner), never by a local preference. It fails closed: any error means
+  // the tab stays hidden.
+  let access = { userId: null, allowed: false, owner: false, loaded: false };
+  async function loadAccess(force = false) {
+    const userId = auth.get().user?.id || null;
+    if (!force && access.loaded && access.userId === userId) return access;
+    let next = { allowed: false, owner: false };
+    try {
+      const data = await endpoints.diagnosticsAccess();
+      next = { allowed: Boolean(data?.allowed), owner: Boolean(data?.owner) };
+    } catch {
+      /* fail closed */
+    }
+    access = { userId, ...next, loaded: true };
+    return access;
+  }
+  const accessApi = {
+    get: () => ({ allowed: access.allowed, owner: access.owner }),
+    refresh: async () => {
+      await loadAccess(true);
+      const current = router.getCurrent();
+      if (current) renderRoute(current).catch((err) => renderFatal(err));
+    },
+  };
+
   async function recheckStanding() {
     await loadStanding(true);
     if (!standing.blocked) {
@@ -274,7 +300,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
 
   function buildShell(ctx) {
     const session = auth.get();
-    const developer = Boolean(prefs.get().showDeveloperTools);
+    const developer = access.allowed;
     const guild = ctx?.params?.guildId ? auth.guildById(ctx.params.guildId) : null;
     const navItems = guild ? NAV_MAIN.map((item) => ({ ...item, href: guildPath(guild.id, item.path) })) : [];
     const settingsGroups = guild ? settingsNav() : [];
@@ -324,7 +350,6 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         : h(
             "a",
             { class: "guild-switch", href: "/guilds" },
-            h("img", { class: "brand-mark brand-logo", src: "/assets/riftlogo.jpg", alt: "", width: 32, height: 32, style: "width:32px;height:32px;border-radius:9px" }),
             h("span", { class: "guild-switch-text" }, h("span", { class: "guild-switch-name" }, "Your servers"), h("span", { class: "guild-switch-sub" }, `${fmtInt(session.guilds.length)} available`)),
             icon("chevron-down", { size: 14 })
           ),
@@ -531,6 +556,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         return;
       }
       await loadStanding();
+      await loadAccess();
       if (appStore.get().lastRoute !== ctx.fullPath) return;
       if (standing.blocked) {
         const cleanup = await appealsPage.mountPage({
@@ -541,9 +567,8 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         document.title = `Access blocked · ${config.siteName}`;
         return;
       }
-      if (route?.developer && !prefs.get().showDeveloperTools) {
-        toast.warning("Turn on Developer tools in Account to open Diagnostics.", { title: "Developer tools are off" });
-        router.replace("/me");
+      if (route?.developer && !access.allowed) {
+        router.replace("/guilds");
         return;
       }
     }
@@ -613,6 +638,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       user: session.user,
       store: appStore,
       diagnosticsReport,
+      access: accessApi,
       signal: currentController.signal,
       setTitle: (title) => {
         document.title = `${title} · ${guild?.name || config.siteName}`;
@@ -714,7 +740,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         items.push({ group: `Settings · ${titleCase(section.group)}`, label: section.title, icon: section.icon, sub: section.key, run: () => router.navigate(guildPath(guild.id, `settings/${section.key}`)) });
       }
     }
-    const developer = Boolean(prefs.get().showDeveloperTools);
+    const developer = access.allowed;
     for (const action of paletteActions) {
       if (!developer && (action.id === "status" || action.id === "copy-diag")) continue;
       items.push({ group: "Actions", ...action });
@@ -952,6 +978,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     }
     if (session.status === "expired" || session.status === "anonymous") {
       standing = { userId: null, blocked: false, loaded: false };
+      access = { userId: null, allowed: false, owner: false, loaded: false };
       live.stop();
     }
     if (changed && session.status === "expired") {
@@ -960,25 +987,6 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     if (changed && appStore.get().ready) {
       renderBanners(router.getCurrent(), router.getCurrent()?.params?.guildId ? auth.guildById(router.getCurrent().params.guildId) : null);
     }
-  });
-
-  // The Diagnostics links depend on an account preference, so rebuild the
-  // shell when a user opts in or out. Hydrated preferences take effect too.
-  let lastDeveloperTools = prefs.get().showDeveloperTools;
-  prefs.subscribe((next) => {
-    if (next.showDeveloperTools === lastDeveloperTools) return;
-    lastDeveloperTools = next.showDeveloperTools;
-    if (!appStore.get().ready || !shellEls) return;
-    const current = router.getCurrent();
-    if (!lastDeveloperTools && current?.route?.developer) {
-      router.replace("/me");
-      return;
-    }
-    const scroll = window.scrollY;
-    buildShell(current);
-    renderBanners(current, current?.params?.guildId ? auth.guildById(current.params.guildId) : null);
-    renderRoute(current);
-    requestAnimationFrame(() => window.scrollTo(0, scroll));
   });
 
   appStore.subscribe((state, meta) => {

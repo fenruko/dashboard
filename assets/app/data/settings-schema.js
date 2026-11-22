@@ -148,8 +148,12 @@ const CURATED = {
   ],
   antinuke: ["enabled", "punishment", "default_threshold", "whitelist", "log_channel"],
   antiraid: ["enabled", "join_threshold", "join_window", "min_account_age", "punishment", "log_channel"],
-  welcome: ["enabled", "welcome_channel_id", "welcome_message", "leave_message", "dm_message", "auto_role_id"],
-  goodbye: ["enabled", "channel_id", "message"],
+  welcome: [
+    "welcome_enabled", "welcome_channel_id", "welcome_mode", "welcome_message", "welcome_title", "welcome_color", "welcome_footer", "welcome_image",
+    "welcome_role_id",
+    "dm_enabled", "dm_mode", "dm_message", "dm_title", "dm_color", "dm_footer", "dm_image",
+  ],
+  goodbye: ["enabled", "channel_id", "mode", "message", "title", "color", "footer", "image"],
   leveling: ["xp_per_message", "xp_cooldown", "xp_formula_base", "xp_formula_exponent", "level_up_channel", "level_up_messages", "level_up_image"],
   voice_xp: ["enabled", "xp_per_minute", "require_others", "ignore_muted", "ignore_deafened"],
   invites: ["enabled", "channel_id", "track_fake", "leave_message"],
@@ -185,9 +189,35 @@ const CURATED = {
   reaction_roles: ["reaction_roles"],
 };
 
+const WELCOME_VARS = "Variables: {user}, {user.name}, {user.display}, {server}, {member_count}, {time}, {date}.";
+const MODE_TEXT_EMBED = [{ value: "text", label: "Plain text" }, { value: "embed", label: "Embed" }];
+const MODE_WELCOME = [...MODE_TEXT_EMBED, { value: "card", label: "Image card" }];
+
 const LABEL_OVERRIDES = {
-  "welcome.auto_role_id": { label: "Auto-role on join" },
-  "welcome.leave_message": { label: "Leave message", help: "Shown in the welcome channel when a member leaves." },
+  "welcome.welcome_enabled": { label: "Welcome message", type: "boolean", help: "Post a greeting in the welcome channel when someone joins." },
+  "welcome.welcome_channel_id": { label: "Welcome channel" },
+  "welcome.welcome_mode": { label: "Welcome style", type: "select", options: MODE_WELCOME, help: "Image card attaches a banner (style is set with /welcome banner)." },
+  "welcome.welcome_message": { label: "Welcome message text", type: "textarea", placeholder: "Welcome {user} to {server}! You are our {member_number} member 🎉", help: WELCOME_VARS },
+  "welcome.welcome_title": { label: "Embed title", type: "text", help: "Used in embed style." },
+  "welcome.welcome_color": { label: "Embed colour", type: "color" },
+  "welcome.welcome_footer": { label: "Embed footer", type: "text" },
+  "welcome.welcome_image": { label: "Embed image URL", type: "text", placeholder: "https://…" },
+  "welcome.welcome_role_id": { label: "Role given on join", type: "role" },
+  "welcome.dm_enabled": { label: "Direct message", type: "boolean", help: "Also DM the new member." },
+  "welcome.dm_mode": { label: "DM style", type: "select", options: MODE_TEXT_EMBED },
+  "welcome.dm_message": { label: "DM text", type: "textarea", placeholder: "Hey {user.display}, welcome to **{server}**! 💖", help: WELCOME_VARS },
+  "welcome.dm_title": { label: "DM embed title", type: "text" },
+  "welcome.dm_color": { label: "DM embed colour", type: "color" },
+  "welcome.dm_footer": { label: "DM embed footer", type: "text" },
+  "welcome.dm_image": { label: "DM embed image URL", type: "text", placeholder: "https://…" },
+  "goodbye.enabled": { label: "Goodbye message", type: "boolean", help: "Post a farewell when a member leaves." },
+  "goodbye.channel_id": { label: "Goodbye channel", help: "If empty, the welcome channel is used." },
+  "goodbye.mode": { label: "Goodbye style", type: "select", options: MODE_TEXT_EMBED },
+  "goodbye.message": { label: "Goodbye text", type: "textarea", placeholder: "Goodbye {user.name}, we'll miss you! 👋", help: WELCOME_VARS },
+  "goodbye.title": { label: "Embed title", type: "text", help: "Used in embed style." },
+  "goodbye.color": { label: "Embed colour", type: "color" },
+  "goodbye.footer": { label: "Embed footer", type: "text" },
+  "goodbye.image": { label: "Embed image URL", type: "text", placeholder: "https://…" },
   "verification.role_id": { label: "Role granted on verify" },
   "modmail.category_id": { label: "ModMail category", help: "New modmail threads are created inside this category." },
   "counting.channel_id": { label: "Counting channel" },
@@ -242,9 +272,10 @@ const SECTIONS = [
     title: "Welcome",
     group: "community",
     icon: "door-open",
-    description: "Greeting, leave and DM messages sent when members come and go.",
+    description: "Greeting and DM messages sent when someone joins. Goodbye messages have their own section.",
     mode: "merge",
-    notes: ["Variables: {user}, {user.name}, {user.display}, {server}, {member_count}, {time}, {date}."],
+    hide: ["leave_"],
+    notes: ["Same settings as the /welcome panel in Discord, so changes made in either place show up in both."],
   },
   {
     key: "goodbye",
@@ -253,7 +284,8 @@ const SECTIONS = [
     icon: "log-out",
     description: "Farewell messages posted when a member leaves.",
     mode: "keys",
-    keys: ["enabled", "channel_id", "message"],
+    keys: ["enabled", "channel_id", "mode", "message", "title", "color", "footer", "image"],
+    notes: ["Same settings as /welcome goodbye in Discord, so changes made in either place show up in both."],
   },
   {
     key: "leveling",
@@ -515,8 +547,9 @@ export function inferFieldType(key, value) {
 export function buildSettingsModel(section, data) {
   const raw = data && typeof data === "object" && !Array.isArray(data) ? data : {};
   const curatedKeys = new Set(section.fields.map((field) => field.key));
+  const hidden = section.hide || [];
   const extras = Object.keys(raw)
-    .filter((key) => !curatedKeys.has(key) && key !== "password_hash")
+    .filter((key) => !curatedKeys.has(key) && key !== "password_hash" && !hidden.some((prefix) => key.startsWith(prefix)))
     .sort((a, b) => a.localeCompare(b))
     .map((key) => {
       const value = raw[key];
@@ -591,6 +624,11 @@ export function buildSettingsPayload(section, raw, values, touched, extras = [])
   const base = raw && typeof raw === "object" ? JSON.parse(JSON.stringify(raw)) : {};
   delete base.password_hash;
   delete base.password_configured;
+  // Keys owned by another section (e.g. leave_* belongs to Goodbye) are never
+  // sent back from here, so a stale copy can't overwrite fresher edits.
+  for (const prefix of section.hide || []) {
+    for (const key of Object.keys(base)) if (key.startsWith(prefix)) delete base[key];
+  }
 
   if (section.key === "socials") {
     const subscriptions = (values.subscriptions || raw?.subscriptions || [])

@@ -17,7 +17,6 @@ export const DEFAULT_PREFS = {
   timezone: "local",
   lastGuildId: "",
   seenShortcuts: false,
-  showDeveloperTools: false,
 };
 
 function readLocal() {

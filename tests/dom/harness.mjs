@@ -90,8 +90,8 @@ export function createFetchAdapter(backend) {
   };
 }
 
-export function createHarness({ backend = createDemoBackend(), token = "demo-token", url, signedOut = false, userId = DEMO_USER.id } = {}) {
-  const effectiveToken = signedOut ? "" : token;
+export function createHarness({ backend = createDemoBackend(), token = "demo-token", url, signedOut = false, userId = DEMO_USER.id, access = { allowed: false, owner: false } } = {}) {
+  const effectiveToken = signedOut ? "" : userId !== DEMO_USER.id && token === "demo-token" ? `user:${userId}` : token;
   if (url) installDom({ url });
   else if (!globalThis.window) installDom();
   const fetchImpl = createFetchAdapter(backend);
@@ -184,6 +184,7 @@ export function createHarness({ backend = createDemoBackend(), token = "demo-tok
       auth,
       live,
       prefs,
+      access: { get: () => ({ ...access }), refresh: async () => {} },
       config,
       router,
       toast,

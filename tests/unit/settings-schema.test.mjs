@@ -150,3 +150,44 @@ test("keys-mode validation ignores curated fields outside the bot key set", () =
   const flagged = validateSection(synthetic, { xp_per_message: "-5", not_a_bot_key: "1" }, new Set());
   assert.ok(flagged.xp_per_message);
 });
+
+test("goodbye edits the bot's leave_* model: enabled, channel, style, text and embed fields", () => {
+  const goodbye = getSection("goodbye");
+  assert.equal(goodbye.mode, "keys");
+  assert.deepEqual(goodbye.keys, ["enabled", "channel_id", "mode", "message", "title", "color", "footer", "image"]);
+  const byKey = Object.fromEntries(goodbye.fields.map((f) => [f.key, f]));
+  assert.equal(byKey.enabled.type, "boolean");
+  assert.equal(byKey.channel_id.type, "channel");
+  assert.equal(byKey.mode.type, "select");
+  assert.deepEqual(byKey.mode.options.map((o) => o.value), ["text", "embed"], "goodbye has no image-card mode");
+  assert.equal(byKey.message.type, "textarea");
+  assert.equal(byKey.color.type, "color");
+});
+
+test("goodbye payload sends only the keys the bot setter understands", () => {
+  const goodbye = getSection("goodbye");
+  const raw = { enabled: true, channel_id: "42", mode: "text", message: "bye", title: "", color: "", footer: "", image: "", default_message: "Goodbye" };
+  const payload = buildSettingsPayload(goodbye, raw, { message: "see you" }, new Set(["message"]));
+  assert.deepEqual(Object.keys(payload).sort(), ["channel_id", "color", "enabled", "footer", "image", "message", "mode", "title"]);
+  assert.equal(payload.message, "see you");
+  assert.equal(payload.channel_id, "42");
+});
+
+test("welcome uses welcome_*/dm_* keys and never echoes leave_* back", () => {
+  const welcome = getSection("welcome");
+  const keys = welcome.fields.map((f) => f.key);
+  for (const key of ["welcome_enabled", "welcome_channel_id", "welcome_mode", "welcome_message", "welcome_role_id", "dm_enabled", "dm_message"]) {
+    assert.ok(keys.includes(key), key);
+  }
+  assert.equal(keys.some((k) => k.startsWith("leave_")), false);
+  assert.equal(keys.includes("auto_role_id"), false, "the stale auto_role_id key is gone");
+  const welcomeMode = welcome.fields.find((f) => f.key === "welcome_mode");
+  assert.deepEqual(welcomeMode.options.map((o) => o.value), ["text", "embed", "card"]);
+
+  const raw = { welcome_message: "hi", leave_message: "STALE", leave_channel_id: "9", welcome_enabled: true };
+  const model = buildSettingsModel(welcome, raw);
+  assert.equal(model.extras.some((f) => f.key.startsWith("leave_")), false, "leave keys are not shown as extras");
+  const payload = buildSettingsPayload(welcome, raw, { welcome_message: "new" }, new Set(["welcome_message"]));
+  assert.equal(payload.welcome_message, "new");
+  assert.equal("leave_message" in payload || "leave_channel_id" in payload, false, "stale leave keys can't overwrite Goodbye edits");
+});
