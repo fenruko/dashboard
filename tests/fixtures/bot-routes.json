@@ -946,5 +946,33 @@
    "DELETE"
   ],
   "source": "dashboard-tools"
+ },
+ {
+  "kind": "route",
+  "path": "/api/dashboard/diagnostics-access",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/dashboard/diagnostics-access/users",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/dashboard/diagnostics-access/<int:staff_id>",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/dashboard/diagnostics-access/<int:staff_id>",
+  "methods": [
+   "DELETE"
+  ]
  }
 ]

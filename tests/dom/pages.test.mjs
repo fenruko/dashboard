@@ -434,36 +434,17 @@ test("verification success and flag paths both render", async () => {
   flaggedDom.window.close();
 });
 
-test("Developer tools are available to everyone while API host editing is owner-only", async () => {
+test("Diagnostics and developer tools are hidden unless the bot says the account may see them", async () => {
   installDom();
   const normal = createHarness();
   freshRoot();
   let mounted = await mountPage("assets/app/pages/me.js", normal, { path: "/me", params: {}, query: {} });
   await flush(6);
   let text = document.getElementById("root").textContent;
-  assert.match(text, /Developer tools/, "regular accounts can opt into developer tools");
-  assert.match(text, /Enable developer tools/, "the opt-in switch is visible to everyone");
-  assert.equal(text.includes("API base URL"), false, "regular accounts never see the API host");
-  assert.equal(text.includes("api.test"), false, "the API host is not rendered");
-
-  let developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
-  assert.ok(developerCard, "developer card is present for a regular account");
-  developerCard.querySelector('input[role="switch"]').click();
-  await flush(3);
-  assert.equal(normal.prefs.get().showDeveloperTools, true, "the opt-in is stored per account");
-  text = document.getElementById("root").textContent;
-  assert.match(text, /API host changes are restricted/, "regular accounts are told who manages the host");
-  assert.equal(text.includes("API base URL"), false, "enabling developer tools does not reveal the API host");
-  assert.equal(text.includes("api.test"), false, "enabling developer tools does not print the API host");
-  assert.match(text, /Open diagnostics/, "regular accounts get diagnostics after opting in");
-  mounted.cleanup?.();
-
-  freshRoot();
-  mounted = await mountPage("assets/app/pages/status.js", normal, { path: "/status", params: {}, query: {} });
-  await flush(6);
-  text = document.getElementById("root").textContent;
-  assert.equal(text.includes("api.test"), false, "diagnostics never print the API base");
-  assert.equal(/API (base|host)/i.test(text), false, "diagnostics has no API host control");
+  assert.equal(text.includes("Developer tools"), false, "regular accounts get no developer card");
+  assert.equal(text.includes("Open diagnostics"), false);
+  assert.equal(text.includes("API base URL"), false);
+  assert.equal(text.includes("null"), false, "no stray null text in the page");
   mounted.cleanup?.();
 
   freshRoot();
@@ -472,26 +453,86 @@ test("Developer tools are available to everyone while API host editing is owner-
   await flush(3);
   text = document.body.textContent;
   assert.equal(text.includes("Advanced: API host"), false, "sign-in has no API host editor");
-  assert.equal(text.includes("API base URL"), false);
   mounted.cleanup?.();
 
+  // A granted (non-owner) account sees the tools but not the access manager.
   installDom();
-  const developer = createHarness({ userId: "834869554798395392" });
+  const granted = createHarness({ access: { allowed: true, owner: false } });
   freshRoot();
-  mounted = await mountPage("assets/app/pages/me.js", developer, { path: "/me", params: {}, query: {} });
+  mounted = await mountPage("assets/app/pages/me.js", granted, { path: "/me", params: {}, query: {} });
   await flush(6);
   text = document.getElementById("root").textContent;
-  assert.match(text, /Developer tools/, "allow-listed developers get the same opt-in");
-  assert.equal(text.includes("API base URL"), false, "the host editor is hidden until the developer opts in");
-
-  developerCard = [...document.querySelectorAll("section.card")].find((card) => card.querySelector(".card-title")?.textContent === "Developer tools");
-  developerCard.querySelector('input[role="switch"]').click();
-  await flush(3);
-  assert.equal(developer.prefs.get().showDeveloperTools, true);
-  text = document.getElementById("root").textContent;
-  assert.match(text, /API base URL/, "opting in reveals the host editor to the owner");
-  assert.ok(document.querySelector("input.mono"), "the host field is a real input");
+  assert.match(text, /Developer tools/);
+  assert.match(text, /Open diagnostics/);
+  assert.equal(text.includes("Who can see Diagnostics"), false, "only the owner manages access");
+  assert.equal(text.includes("API base URL"), false, "the API host stays developer-only");
   mounted.cleanup?.();
+
+  // The owner gets the host editor and the access manager.
+  installDom();
+  const owner = createHarness({ userId: "834869554798395392", access: { allowed: true, owner: true } });
+  freshRoot();
+  mounted = await mountPage("assets/app/pages/me.js", owner, { path: "/me", params: {}, query: {} });
+  await flush(8);
+  text = document.getElementById("root").textContent;
+  assert.match(text, /API base URL/);
+  assert.match(text, /Who can see Diagnostics/);
+  assert.match(text, /Only you can see Diagnostics right now/);
+  mounted.cleanup?.();
+});
+
+test("the owner can add and remove Diagnostics viewers with autocomplete", async () => {
+  installDom();
+  const owner = createHarness({ userId: "834869554798395392", access: { allowed: true, owner: true } });
+  freshRoot();
+  const mounted = await mountPage("assets/app/pages/me.js", owner, { path: "/me", params: {}, query: {} });
+  await flush(8);
+  const input = document.querySelector('[data-diagnostics-access] input[role="combobox"]');
+  assert.ok(input, "autocomplete input is present");
+
+  input.value = "gr";
+  input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 260));
+  await flush(4);
+  const options = [...document.querySelectorAll('[role="option"]')];
+  assert.deepEqual(options.map((o) => o.querySelector("strong").textContent), ["grace"], "suggestions match the typed prefix");
+  assert.equal(input.getAttribute("aria-expanded"), "true");
+
+  input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  await flush(8);
+  assert.ok(document.querySelector('[data-granted="grace"]'), "grace now appears in the allowed list");
+  assert.equal((await owner.endpoints.diagnosticsAccess()).owner, true);
+
+  // an unlinked account is flagged
+  input.value = "gary";
+  input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 260));
+  await flush(4);
+  document.querySelector('[role="option"]').dispatchEvent(new window.MouseEvent("mousedown", { bubbles: true, cancelable: true }));
+  await flush(8);
+  assert.match(document.querySelector('[data-granted="gary"]').textContent, /No Discord ID linked/);
+
+  // already-granted people and the owner are not suggested again
+  input.value = "e";
+  input.dispatchEvent(new window.Event("input", { bubbles: true }));
+  await new Promise((resolve) => setTimeout(resolve, 260));
+  await flush(4);
+  const names = [...document.querySelectorAll('[role="option"] strong')].map((n) => n.textContent);
+  assert.equal(names.includes("grace") || names.includes("fenruko"), false);
+
+  // remove
+  const row = document.querySelector('[data-granted="grace"]');
+  [...row.querySelectorAll("button")].find((b) => /Remove/.test(b.textContent)).click();
+  await flush(10);
+  assert.equal(document.querySelector('[data-granted="grace"]'), null, "removed");
+  mounted.cleanup?.();
+});
+
+test("a non-owner cannot call the access management endpoints", async () => {
+  installDom();
+  const granted = createHarness({ userId: "900000000000000002", access: { allowed: true, owner: false } });
+  await assert.rejects(() => granted.endpoints.diagnosticsUsers(""), (err) => err.status === 403);
+  await assert.rejects(() => granted.endpoints.diagnosticsGrant(3), (err) => err.status === 403);
 });
 
 test.after(() => {

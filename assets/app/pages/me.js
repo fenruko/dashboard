@@ -21,6 +21,7 @@ import {
   keyValueGrid,
 } from "../ui/components.js";
 import { fmtInt, fmtRelative } from "../core/format.js";
+import { diagnosticsAccessPanel } from "../ui/diagnostics-access.js";
 import { getConfig, normalizeBase, setApiBase, clearApiBaseOverride, isDeveloperUserId } from "../config.js";
 
 export async function mountPage(ctx) {
@@ -31,6 +32,7 @@ export async function mountPage(ctx) {
   let saving = false;
   let lastSync = { at: 0, ok: null, error: null };
   let apiDraft = getConfig().apiBase;
+  const cleanups = [];
 
   const header = pageHeader({
     eyebrow: "Account",
@@ -40,6 +42,8 @@ export async function mountPage(ctx) {
   });
 
   function developerCard() {
+    const diag = ctx.access?.get?.() || { allowed: false, owner: false };
+    if (!diag.allowed) return null;
     const owner = isDeveloperUserId(session.user?.id);
     const result = h("div");
     const input = textInput({
@@ -106,36 +110,13 @@ export async function mountPage(ctx) {
       setTimeout(() => location.reload(), 400);
     }
 
-    const enabled = Boolean(prefs.get().showDeveloperTools);
+    const accessPanel = diag.owner ? diagnosticsAccessPanel({ endpoints: ctx.endpoints, toast, confirm: ctx.confirm || confirmDialog }) : null;
+    if (accessPanel) cleanups.push(() => accessPanel.dispose());
     return card({
       title: "Developer tools",
-      subtitle: "Optional diagnostics and connection tools for this device.",
+      subtitle: "Diagnostics and connection tools. Only you and people you add can see these.",
       children: [
-        switchControl({
-          label: "Enable developer tools",
-          description: "Reveal Diagnostics and connection checks in this browser. Available to every account.",
-          checked: enabled,
-          onChange: (value) => {
-            prefs.set({ showDeveloperTools: value });
-            render();
-          },
-        }),
-        enabled &&
-          callout(
-            owner
-              ? {
-                  tone: "warning",
-                  title: "Changing the API host is restricted",
-                  children: "Only fenruko and any IDs added to developerUserIds in config.js can point this browser at another bot API. The host is never shown on Diagnostics.",
-                }
-              : {
-                  tone: "info",
-                  title: "API host changes are restricted",
-                  children: "The bot API host is managed by fenruko. Developer tools give you Diagnostics and connection checks; the host itself stays unchanged.",
-                }
-          ),
-        enabled &&
-          owner &&
+        owner &&
           field({
             label: "API base URL",
             help: "Include /api. Stored in this browser only and tied to your Discord account.",
@@ -148,28 +129,29 @@ export async function mountPage(ctx) {
               button({ label: "Reset", variant: "ghost", onClick: resetHost })
             ),
           }),
-        enabled &&
-          !owner &&
+        !owner &&
           h(
             "div",
-            { class: "row", style: "margin-top:10px" },
+            { class: "row", style: "margin-bottom:10px" },
             button({ label: "Test connection", icon: "activity", onClick: testHost })
           ),
-        enabled && result,
-        enabled &&
-          h(
-            "div",
-            { class: "row", style: "margin-top:10px" },
-            button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") })
-          ),
+        result,
+        h(
+          "div",
+          { class: "row", style: "margin-top:10px" },
+          button({ label: "Open diagnostics", icon: "terminal", onClick: () => router.navigate("/status") })
+        ),
+        accessPanel &&
+          h("div", { style: "margin-top:18px;padding-top:16px;border-top:1px solid var(--line)" }, h("h3", { style: "font-size:14px;margin:0 0 8px" }, "Who can see Diagnostics"), accessPanel),
       ],
     });
   }
 
   function render() {
+    cleanups.splice(0).forEach((fn) => fn());
     const p = prefs.get();
     const developer = isDeveloperUserId(session.user?.id);
-    const developerTools = Boolean(p.showDeveloperTools);
+    const developerTools = Boolean(ctx.access?.get?.().allowed);
     clear(content);
     content.append(
       grid(
@@ -337,12 +319,15 @@ export async function mountPage(ctx) {
           ),
         ],
       }),
-      developerCard()
+      ...[developerCard()].filter(Boolean)
     );
   }
 
   render();
   mount(page, header, content);
   mount(root, page);
-  return () => clear(root);
+  return () => {
+    cleanups.forEach((fn) => fn());
+    clear(root);
+  };
 }

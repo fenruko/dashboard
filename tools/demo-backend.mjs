@@ -158,8 +158,12 @@ function seedSettings(guildId) {
   data.automod = { enabled: true, anti_link: true, anti_caps: true, anti_spam: true, anti_mention: true, blocked_words: ["slur", "free nitro", "crypto giveaway"], ignored_channels: ["200000000000000104"], whitelist: [ROLES[2].id], punishment: "timeout", detection_threshold: 4 };
   data.antinuke = { enabled: true, punishment: "ban", default_threshold: 3, whitelist: [DEMO_USER_ID] };
   data.antiraid = { enabled: true, join_threshold: 12, join_window: 60, min_account_age: 7, punishment: "kick" };
-  data.welcome = { enabled: true, channel_id: "200000000000000103", message: "Welcome {user} to {server}!", dm_message: "Thanks for joining Rift HQ.", auto_role_id: ROLES[4].id, embed_title: "A new arrival", embed_color: "#00b8ff", embed_footer: "Rift welcomes you", delete_after: 0 };
-  data.goodbye = { enabled: true, channel_id: "200000000000000103", message: "{user} left the server." };
+  data.welcome = {
+    welcome_enabled: true, welcome_channel_id: "200000000000000103", welcome_mode: "embed", welcome_message: "Welcome {user} to {server}!",
+    welcome_title: "A new arrival", welcome_color: "#00b8ff", welcome_footer: "Rift welcomes you", welcome_image: "", welcome_role_id: ROLES[4].id,
+    dm_enabled: true, dm_mode: "text", dm_message: "Thanks for joining Rift HQ.",
+    leave_enabled: true, leave_channel_id: "200000000000000103", leave_mode: "text", leave_message: "{user} left the server.",
+  };
   data.leveling = { xp_per_message: 18, xp_cooldown: 60, xp_formula_base: 100, xp_formula_exponent: 1.6, level_up_channel: "200000000000000101", level_up_messages: true, level_up_image: true };
   data.voice_xp = { enabled: true, xp_per_minute: 8, require_others: true, ignore_muted: true, ignore_deafened: true, level_up_messages: true };
   data.invites = { enabled: true, track_fake: true, log_channel_id: "200000000000000104" };
@@ -192,7 +196,16 @@ function seedSettings(guildId) {
   return data;
 }
 
+const DIAGNOSTICS_OWNER_ID = "834869554798395392";
+
 export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
+  const diagnosticsStaff = [
+    { id: 1, username: "fenruko", role: "owner", discordId: DIAGNOSTICS_OWNER_ID },
+    { id: 2, username: "grace", role: "staff", discordId: "900000000000000002" },
+    { id: 3, username: "gary", role: "staff", discordId: null },
+    { id: 4, username: "wilma", role: "admin", discordId: "900000000000000004" },
+  ];
+  const diagnosticsGranted = new Set();
   const random = lcg(seed);
   const startedAt = Date.now() - 1000 * 60 * 60 * 27;
   const settingsStore = new Map();
@@ -459,6 +472,35 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
     const unauthorized = () => reply(401, { error: "Unauthorized" });
 
     if (route === "/demo/me") return reply(200, DEMO_USER);
+
+    // Diagnostics access (mirrors the bot: owner + explicit grants; wildcard admins do not count).
+    const diagMatch = /^\/dashboard\/diagnostics-access(?:\/(users|\d+))?$/.exec(route);
+    if (diagMatch) {
+      if (!auth) return unauthorized();
+      const isOwner = auth.id === DIAGNOSTICS_OWNER_ID;
+      const target = diagMatch[1];
+      if (!target && upper === "GET") return reply(200, { owner: isOwner, allowed: isOwner || diagnosticsGranted.has(auth.id) });
+      if (!isOwner) return reply(403, { error: "Only the owner can manage Diagnostics access" });
+      if (target === "users" && upper === "GET") {
+        const q = (params.get("q") || "").toLowerCase();
+        const users = diagnosticsStaff
+          .filter((u) => !q || u.username.includes(q))
+          .map((u) => ({ id: u.id, username: u.username, role: u.role, linked: Boolean(u.discordId), granted: diagnosticsGranted.has(u.discordId), owner: u.discordId === DIAGNOSTICS_OWNER_ID }));
+        users.sort((a, b) => Number(b.granted) - Number(a.granted) || a.username.localeCompare(b.username));
+        return reply(200, { users });
+      }
+      const staff = diagnosticsStaff.find((u) => String(u.id) === target);
+      if (!staff) return reply(404, { error: "Staff account not found" });
+      if (upper === "PUT") {
+        diagnosticsGranted.add(staff.discordId);
+        return reply(200, { ok: true, id: staff.id, username: staff.username, granted: true, linked: Boolean(staff.discordId) });
+      }
+      if (upper === "DELETE") {
+        if (staff.discordId === DIAGNOSTICS_OWNER_ID) return reply(400, { error: "The owner always has Diagnostics access" });
+        diagnosticsGranted.delete(staff.discordId);
+        return reply(200, { ok: true, id: staff.id, username: staff.username, granted: false, linked: Boolean(staff.discordId) });
+      }
+    }
     if (route === "/demo/guilds") return reply(200, DEMO_GUILDS);
 
     if (route === "/stats") {
@@ -686,6 +728,17 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
       const section = getSection(sectionKey);
       if (!section) return reply(404, { error: "Unknown settings section" });
       const all = getGuildSettings(guildId);
+      // Like the bot: Goodbye is a view over the welcome settings' leave_* keys.
+      const LEAVE_FIELDS = ["enabled", "channel_id", "mode", "message", "title", "color", "footer", "image"];
+      if (upper === "GET" && sectionKey === "goodbye") {
+        const w = all.welcome || {};
+        return reply(200, { section: sectionKey, data: Object.fromEntries(LEAVE_FIELDS.map((f) => [f, w[`leave_${f}`] ?? (f === "enabled" ? true : f === "mode" ? "text" : f === "channel_id" ? null : "")])), editable: true });
+      }
+      if (upper === "POST" && sectionKey === "goodbye") {
+        const payload = body && typeof body === "object" ? body : {};
+        for (const f of LEAVE_FIELDS) if (payload[f] !== undefined) all.welcome[`leave_${f}`] = payload[f];
+        return reply(200, { ok: true });
+      }
       if (upper === "GET") return reply(200, { section: sectionKey, data: json(all[sectionKey] || {}), editable: section.mode !== "readonly" });
       if (section.mode === "readonly") return reply(403, { error: "This section is read-only from the dashboard" });
       const payload = body && typeof body === "object" ? body : {};

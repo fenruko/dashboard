@@ -13,6 +13,12 @@ export function createEndpoints(api) {
     demoMe: () => api.get("/demo/me", { retries: 0 }),
     demoGuilds: () => api.get("/demo/guilds", { retries: 0 }),
 
+    /* ---- Diagnostics access (owner-managed; see web_server.py) ---- */
+    diagnosticsAccess: () => api.get("/dashboard/diagnostics-access", { retries: 0 }),
+    diagnosticsUsers: (query = "") => api.get(`/dashboard/diagnostics-access/users?q=${enc(query)}`, { retries: 0 }),
+    diagnosticsGrant: (staffId) => api.put(`/dashboard/diagnostics-access/${enc(staffId)}`, {}, { retries: 0 }),
+    diagnosticsRevoke: (staffId) => api.del(`/dashboard/diagnostics-access/${enc(staffId)}`, { retries: 0 }),
+
     /* ---- guild ---- */
     guildInfo: (guildId) => api.get(`/guild/${enc(guildId)}/info`, { cacheTtl: 30_000 }),
     analytics: (guildId) => api.get(`/analytics/${enc(guildId)}`, { cacheTtl: 30_000 }),
