@@ -25,28 +25,11 @@ import { createRouter, guildPath } from "./core/router.js";
 import { createStore } from "./core/store.js";
 import { createPreferences } from "./core/prefs.js";
 import { createEndpoints } from "./data/endpoints.js";
-import { SETTINGS_SECTIONS, SETTINGS_GROUPS } from "./data/settings-schema.js";
+import { SETTINGS_NAV, SETTINGS_GROUPS } from "./data/settings-nav.js";
 import { getConfig, buildInviteUrl, isDeveloperUserId, clearApiBaseOverride } from "./config.js";
 import { copyToClipboard, fmtInt, titleCase } from "./core/format.js";
 import { checkLatestBlogPost, showBlogNotification } from "./ui/blog-notify.js";
 
-import * as loginPage from "./pages/login.js";
-import * as guildsPage from "./pages/guilds.js";
-import * as overviewPage from "./pages/overview.js";
-import * as settingsPage from "./pages/settings.js";
-import * as moderationPage from "./pages/moderation.js";
-import * as musicPage from "./pages/music.js";
-import * as lastfmPage from "./pages/lastfm.js";
-import * as stocksPage from "./pages/stocks.js";
-import * as voicePage from "./pages/voice.js";
-import * as verificationPage from "./pages/verification.js";
-import * as analyticsPage from "./pages/analytics.js";
-import * as mePage from "./pages/me.js";
-import * as statusPage from "./pages/status.js";
-import * as verifyPage from "./pages/verify.js";
-import * as appealsPage from "./pages/appeals.js";
-import * as bugReportPage from "./pages/bugreport.js";
-import * as notFoundPage from "./pages/notfound.js";
 
 const PUBLIC_ROUTES = new Set(["/login", "/verify", "/appeals", "/bugreport"]);
 
@@ -57,6 +40,7 @@ export const NAV_MAIN = [
   { path: "music", label: "Music", icon: "music" },
   { path: "lastfm", label: "Last.fm", icon: "activity" },
   { path: "stocks", label: "Stocks", icon: "coins" },
+  { path: "commands", label: "Commands", icon: "terminal" },
   { path: "voice-call", label: "Voice call", icon: "phone" },
   { path: "verification-activity", label: "Verification", icon: "user-check" },
 ];
@@ -64,7 +48,7 @@ export const NAV_MAIN = [
 export function settingsNav() {
   return SETTINGS_GROUPS.map((group) => ({
     label: group.label,
-    items: SETTINGS_SECTIONS.filter((section) => section.group === group.id).map((section) => ({
+    items: SETTINGS_NAV.filter((section) => section.group === group.id).map((section) => ({
       path: `settings/${section.key}`,
       label: section.title,
       icon: section.icon,
@@ -72,26 +56,61 @@ export function settingsNav() {
   }));
 }
 
+// Pages load on demand: first paint only needs the shell, not 480 KB of every page.
+const PAGE_LOADERS = {
+  login: () => import("./pages/login.js"),
+  verify: () => import("./pages/verify.js"),
+  appeals: () => import("./pages/appeals.js"),
+  bugreport: () => import("./pages/bugreport.js"),
+  guilds: () => import("./pages/guilds.js"),
+  overview: () => import("./pages/overview.js"),
+  analytics: () => import("./pages/analytics.js"),
+  moderation: () => import("./pages/moderation.js"),
+  music: () => import("./pages/music.js"),
+  lastfm: () => import("./pages/lastfm.js"),
+  stocks: () => import("./pages/stocks.js"),
+  commands: () => import("./pages/commands.js"),
+  voice: () => import("./pages/voice.js"),
+  verification: () => import("./pages/verification.js"),
+  settings: () => import("./pages/settings.js"),
+  me: () => import("./pages/me.js"),
+  status: () => import("./pages/status.js"),
+  notfound: () => import("./pages/notfound.js"),
+};
+const pageCache = new Map();
+export function loadPage(name) {
+  let entry = pageCache.get(name);
+  if (!entry) {
+    entry = (PAGE_LOADERS[name] || PAGE_LOADERS.notfound)().catch((err) => {
+      pageCache.delete(name); // a failed (offline) load must be retryable
+      throw err;
+    });
+    pageCache.set(name, entry);
+  }
+  return entry;
+}
+
 const ROUTES = [
-  { path: "/login", page: loginPage, public: true, title: "Sign in" },
-  { path: "/verify", page: verifyPage, public: true, title: "Verify" },
-  { path: "/appeals", page: appealsPage, public: true, title: "Blacklist appeal" },
-  { path: "/appeals/thread/:token", page: appealsPage, public: true, title: "Appeal thread" },
-  { path: "/bugreport", page: bugReportPage, public: true, title: "Report a bug" },
-  { path: "/guilds", page: guildsPage, title: "Your servers" },
-  { path: "/g/:guildId", page: overviewPage, guild: true, title: "Overview" },
-  { path: "/g/:guildId/analytics", page: analyticsPage, guild: true, title: "Analytics" },
-  { path: "/g/:guildId/moderation", page: moderationPage, guild: true, title: "Moderation" },
-  { path: "/g/:guildId/music", page: musicPage, guild: true, title: "Music" },
-  { path: "/g/:guildId/lastfm", page: lastfmPage, guild: true, title: "Last.fm" },
-  { path: "/g/:guildId/stocks", page: stocksPage, guild: true, title: "Stocks" },
-  { path: "/g/:guildId/voice-call", page: voicePage, guild: true, title: "Voice call" },
-  { path: "/g/:guildId/verification-activity", page: verificationPage, guild: true, title: "Verification activity" },
-  { path: "/g/:guildId/settings", page: settingsPage, guild: true, title: "Settings" },
-  { path: "/g/:guildId/settings/:section", page: settingsPage, guild: true, title: "Settings" },
-  { path: "/me", page: mePage, title: "Account & preferences" },
-  { path: "/status", page: statusPage, title: "Diagnostics", developer: true },
-  { path: "/diagnostics", page: statusPage, title: "Diagnostics", developer: true },
+  { path: "/login", page: "login", public: true, title: "Sign in" },
+  { path: "/verify", page: "verify", public: true, title: "Verify" },
+  { path: "/appeals", page: "appeals", public: true, title: "Blacklist appeal" },
+  { path: "/appeals/thread/:token", page: "appeals", public: true, title: "Appeal thread" },
+  { path: "/bugreport", page: "bugreport", public: true, title: "Report a bug" },
+  { path: "/guilds", page: "guilds", title: "Your servers" },
+  { path: "/g/:guildId", page: "overview", guild: true, title: "Overview" },
+  { path: "/g/:guildId/analytics", page: "analytics", guild: true, title: "Analytics" },
+  { path: "/g/:guildId/moderation", page: "moderation", guild: true, title: "Moderation" },
+  { path: "/g/:guildId/music", page: "music", guild: true, title: "Music" },
+  { path: "/g/:guildId/lastfm", page: "lastfm", guild: true, title: "Last.fm" },
+  { path: "/g/:guildId/stocks", page: "stocks", guild: true, title: "Stocks" },
+  { path: "/g/:guildId/commands", page: "commands", guild: true, title: "Commands" },
+  { path: "/g/:guildId/voice-call", page: "voice", guild: true, title: "Voice call" },
+  { path: "/g/:guildId/verification-activity", page: "verification", guild: true, title: "Verification activity" },
+  { path: "/g/:guildId/settings", page: "settings", guild: true, title: "Settings" },
+  { path: "/g/:guildId/settings/:section", page: "settings", guild: true, title: "Settings" },
+  { path: "/me", page: "me", title: "Account & preferences" },
+  { path: "/status", page: "status", title: "Diagnostics", developer: true },
+  { path: "/diagnostics", page: "status", title: "Diagnostics", developer: true },
 ];
 
 export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverride } = {}) {
@@ -268,29 +287,43 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     ].join("\n");
   }
 
+  function safeStorageGet(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null; // private mode / blocked storage
+    }
+  }
+
+  const disposers = [];
+  function listen(target, type, handler, options) {
+    target.addEventListener(type, handler, options);
+    disposers.push(() => target.removeEventListener(type, handler, options));
+  }
+
   if (typeof window !== "undefined") {
     window.__riftDiagnostics = diagnosticsReport;
-    window.addEventListener("error", (event) => {
+    listen(window, "error", (event) => {
       recordDiagnostic({ type: "error", message: event.message || String(event.error || "Unknown error") });
     });
-    window.addEventListener("unhandledrejection", (event) => {
+    listen(window, "unhandledrejection", (event) => {
       const reason = event.reason;
       recordDiagnostic({ type: "unhandledrejection", message: reason?.message || String(reason) });
       if (reason?.name !== "AbortError") {
         toast.error(reason?.message || "Something went wrong in the background.", { title: "Unexpected error" });
       }
     });
-    window.addEventListener("offline", () => {
+    listen(window, "offline", () => {
       appStore.set({ connection: "offline" });
       toast.warning("You're offline. Rift will reconnect automatically.");
     });
-    window.addEventListener("online", () => {
+    listen(window, "online", () => {
       appStore.set({ connection: "connecting" });
       auth.refresh();
       live.reconnect();
     });
     if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", () => {
+      listen(document, "visibilitychange", () => {
         if (!document.hidden && auth.get().status === "ready") api.resetDiagnostics?.();
       });
     }
@@ -542,7 +575,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         return;
       }
       if (session.status !== "ready") {
-        await loginPage.mountPage({
+        await (await loadPage("login")).mountPage({
           root,
           ctx,
           auth,
@@ -559,7 +592,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       await loadAccess();
       if (appStore.get().lastRoute !== ctx.fullPath) return;
       if (standing.blocked) {
-        const cleanup = await appealsPage.mountPage({
+        const cleanup = await (await loadPage("appeals")).mountPage({
           root, ctx, auth, config, router, endpoints, api, prefs, live, store: appStore,
           diagnosticsReport, toast, confirm: confirmDialog, mode: "blocked", recheckStanding,
         });
@@ -574,7 +607,8 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     }
 
     if (isPublic) {
-      const page = route?.page || notFoundPage;
+      const page = await loadPage(route?.page || "notfound");
+      if (appStore.get().lastRoute !== ctx.fullPath) return;
       const cleanup = await page.mountPage({
         root,
         ctx,
@@ -590,7 +624,12 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         toast,
         confirm: confirmDialog,
       });
-      currentCleanup = typeof cleanup === "function" ? cleanup : cleanup?.dispose;
+      const dispose = typeof cleanup === "function" ? cleanup : cleanup?.dispose;
+      if (appStore.get().lastRoute !== ctx.fullPath) {
+        try { dispose?.(); } catch (err) { console.error("page cleanup failed", err); }
+        return;
+      }
+      currentCleanup = dispose;
       document.title = `${route?.title || "Rift"} · ${config.siteName}`;
       return;
     }
@@ -661,9 +700,10 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       },
     };
 
-    const page = route?.page || notFoundPage;
     let result;
     try {
+      const page = await loadPage(route?.page || "notfound");
+      if (appStore.get().lastRoute !== ctx.fullPath) return;
       result = await page.mountPage(pageCtx);
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -678,7 +718,13 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       );
       return;
     }
-    currentCleanup = typeof result === "function" ? result : result?.dispose || null;
+    const dispose = typeof result === "function" ? result : result?.dispose || null;
+    if (appStore.get().lastRoute !== ctx.fullPath) {
+      // Navigated away while this page was mounting: tear it down, don't adopt it.
+      try { dispose?.(); } catch (err) { console.error("page cleanup failed", err); }
+      return;
+    }
+    currentCleanup = dispose;
     document.title = `${route?.title || "Rift"} · ${guild?.name || config.siteName}`;
     const target = scrollPositions.get(ctx.fullPath);
     if (target) requestAnimationFrame(() => window.scrollTo(0, target));
@@ -736,7 +782,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       for (const item of NAV_MAIN) {
         items.push({ group: "Go to", label: item.label, icon: item.icon, run: () => router.navigate(guildPath(guild.id, item.path)) });
       }
-      for (const section of SETTINGS_SECTIONS) {
+      for (const section of SETTINGS_NAV) {
         items.push({ group: `Settings · ${titleCase(section.group)}`, label: section.title, icon: section.icon, sub: section.key, run: () => router.navigate(guildPath(guild.id, `settings/${section.key}`)) });
       }
     }
@@ -883,7 +929,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       ["Esc", "Close dialogs and the palette"],
       ["Shift + click", "Open servers in a new tab"],
     ];
-    openModal({
+    const modal = openModal({
       title: "Keyboard shortcuts",
       size: "sm",
       body: h(
@@ -893,7 +939,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
           h("div", { class: "row row--between", style: "padding:6px 0;border-bottom:1px solid var(--line)" }, h("span", { class: "muted" }, label), kbd(keys.split(" + ")))
         )
       ),
-      footer: [button({ label: "Got it", variant: "primary", onClick: () => document.querySelector(".overlay:last-child")?.remove() })],
+      footer: [button({ label: "Got it", variant: "primary", onClick: () => modal.close() })],
     });
     prefs.set({ seenShortcuts: true });
   }
@@ -903,17 +949,19 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
   if (typeof window !== "undefined") {
     let pendingG = false;
     let gTimer = null;
-    window.addEventListener("keydown", (event) => {
+    listen(window, "keydown", (event) => {
+      const key = String(event.key || "").toLowerCase(); // synthetic events can lack a key
+      if (!key) return;
       const target = event.target;
       const typing = target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target?.isContentEditable;
       const meta = event.metaKey || event.ctrlKey;
 
-      if (meta && event.key.toLowerCase() === "k") {
+      if (meta && key === "k") {
         event.preventDefault();
         openPalette();
         return;
       }
-      if (meta && event.key.toLowerCase() === "s") {
+      if (meta && key === "s") {
         if (typing) {
           event.preventDefault();
           window.dispatchEvent(new CustomEvent("rift:save"));
@@ -921,12 +969,12 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         return;
       }
       if (typing) return;
-      if (event.key === "?") {
+      if (key === "?") {
         event.preventDefault();
         openShortcuts();
         return;
       }
-      if (event.key.toLowerCase() === "g") {
+      if (key === "g") {
         if (pendingG) {
           pendingG = false;
           clearTimeout(gTimer);
@@ -941,10 +989,10 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         const current = router.getCurrent();
         const guildId = current?.params?.guildId;
         if (!guildId) return;
-        if (event.key.toLowerCase() === "s") router.navigate(guildPath(guildId, "settings/automod"));
-        else if (event.key.toLowerCase() === "m") router.navigate(guildPath(guildId, "moderation"));
-        else if (event.key.toLowerCase() === "o") router.navigate(guildPath(guildId));
-        else if (event.key.toLowerCase() === "u") router.navigate(guildPath(guildId, "music"));
+        if (key === "s") router.navigate(guildPath(guildId, "settings/automod"));
+        else if (key === "m") router.navigate(guildPath(guildId, "moderation"));
+        else if (key === "o") router.navigate(guildPath(guildId));
+        else if (key === "u") router.navigate(guildPath(guildId, "music"));
         pendingG = false;
         clearTimeout(gTimer);
       }
@@ -958,7 +1006,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     const changed = session.status !== lastStatus;
     lastStatus = session.status;
     if (session.status === "ready") {
-      if (!isDeveloperUserId(session.user?.id) && localStorage.getItem("rift_api_base_owner")) {
+      if (!isDeveloperUserId(session.user?.id) && safeStorageGet("rift_api_base_owner")) {
         clearApiBaseOverride();
         api.setBase(getConfig().apiBase);
       }
@@ -1002,22 +1050,23 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     }
   });
 
-  // Re-render the connection pill independently of route changes.
-  const pillTimer = setInterval(() => {
-    if (!shellEls) return;
+  // The connection pill follows the two stores that own its inputs; no polling.
+  function syncPill() {
+    const pill = shellEls?.connectionPill;
+    if (!pill) return;
     const state = appStore.get().connection;
     const liveStatus = live.statusStore.get().stats;
-    const pill = shellEls.connectionPill;
-    if (!pill) return;
+    const key = `${liveStatus}:${state}`;
+    if (pill.dataset.state === key) return;
     const isLive = liveStatus === "open";
     const down = state === "down" || state === "offline" || liveStatus === "reconnecting" || liveStatus === "closed";
+    pill.dataset.state = key;
     pill.className = cx("connection-pill", isLive ? "is-live" : down ? "is-down" : "");
-    if (pill.dataset.state !== `${liveStatus}:${state}`) {
-      pill.dataset.state = `${liveStatus}:${state}`;
-      clear(pill);
-      pill.append(statusDot(isLive ? "open" : down ? "error" : "connecting"), h("span", null, isLive ? "Live" : state === "offline" ? "Offline" : down ? "Reconnecting" : "Connecting"));
-    }
-  }, 1500);
+    pill.title = `Live socket: ${liveStatus}`;
+    clear(pill);
+    pill.append(statusDot(isLive ? "open" : down ? "error" : "connecting"), h("span", null, isLive ? "Live" : state === "offline" ? "Offline" : down ? "Reconnecting" : "Connecting"));
+  }
+  const unsubscribePill = [appStore.subscribe(() => syncPill()), live.statusStore.subscribe(() => syncPill())];
 
   async function start() {
     if (typeof location !== "undefined" && /access_token=|error=/.test(location.hash)) {
@@ -1035,7 +1084,8 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
   return {
     start,
     stop() {
-      clearInterval(pillTimer);
+      for (const off of unsubscribePill) off?.();
+      for (const off of disposers.splice(0)) off();
       currentCleanup?.();
       currentController?.abort();
       live.dispose();

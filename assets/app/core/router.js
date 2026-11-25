@@ -153,14 +153,16 @@ export function createRouter({
     navigate(raw);
   }
 
+  function onPopState() {
+    const loc = readLocation();
+    resolve(loc.pathname + loc.search, { skipGuards: true });
+  }
+
   function start() {
     if (started) return;
     started = true;
     if (typeof window !== "undefined") {
-      window.addEventListener("popstate", () => {
-        const loc = readLocation();
-        resolve(loc.pathname + loc.search, { skipGuards: true });
-      });
+      window.addEventListener("popstate", onPopState);
       document.addEventListener("click", onLinkClick);
     }
     const loc = readLocation();
@@ -170,7 +172,10 @@ export function createRouter({
 
   function stop() {
     started = false;
-    if (typeof window !== "undefined") document.removeEventListener("click", onLinkClick);
+    if (typeof window !== "undefined") {
+      document.removeEventListener("click", onLinkClick);
+      window.removeEventListener("popstate", onPopState);
+    }
   }
 
   return {

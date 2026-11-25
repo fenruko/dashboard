@@ -11,12 +11,9 @@
  *     `**kwargs` setters send exactly the keys those setters accept.
  */
 
-export const SETTINGS_GROUPS = [
-  { id: "protection", label: "Protection", icon: "shield" },
-  { id: "community", label: "Community", icon: "users" },
-  { id: "support", label: "Support", icon: "ticket" },
-  { id: "reference", label: "Reference", icon: "database" },
-];
+import { SETTINGS_GROUPS } from "./settings-nav.js";
+
+export { SETTINGS_GROUPS };
 
 const LOG_EVENTS = [
   "message_delete",
