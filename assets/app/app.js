@@ -284,29 +284,43 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     ].join("\n");
   }
 
+  function safeStorageGet(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null; // private mode / blocked storage
+    }
+  }
+
+  const disposers = [];
+  function listen(target, type, handler, options) {
+    target.addEventListener(type, handler, options);
+    disposers.push(() => target.removeEventListener(type, handler, options));
+  }
+
   if (typeof window !== "undefined") {
     window.__riftDiagnostics = diagnosticsReport;
-    window.addEventListener("error", (event) => {
+    listen(window, "error", (event) => {
       recordDiagnostic({ type: "error", message: event.message || String(event.error || "Unknown error") });
     });
-    window.addEventListener("unhandledrejection", (event) => {
+    listen(window, "unhandledrejection", (event) => {
       const reason = event.reason;
       recordDiagnostic({ type: "unhandledrejection", message: reason?.message || String(reason) });
       if (reason?.name !== "AbortError") {
         toast.error(reason?.message || "Something went wrong in the background.", { title: "Unexpected error" });
       }
     });
-    window.addEventListener("offline", () => {
+    listen(window, "offline", () => {
       appStore.set({ connection: "offline" });
       toast.warning("You're offline. Rift will reconnect automatically.");
     });
-    window.addEventListener("online", () => {
+    listen(window, "online", () => {
       appStore.set({ connection: "connecting" });
       auth.refresh();
       live.reconnect();
     });
     if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", () => {
+      listen(document, "visibilitychange", () => {
         if (!document.hidden && auth.get().status === "ready") api.resetDiagnostics?.();
       });
     }
@@ -912,7 +926,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       ["Esc", "Close dialogs and the palette"],
       ["Shift + click", "Open servers in a new tab"],
     ];
-    openModal({
+    const modal = openModal({
       title: "Keyboard shortcuts",
       size: "sm",
       body: h(
@@ -922,7 +936,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
           h("div", { class: "row row--between", style: "padding:6px 0;border-bottom:1px solid var(--line)" }, h("span", { class: "muted" }, label), kbd(keys.split(" + ")))
         )
       ),
-      footer: [button({ label: "Got it", variant: "primary", onClick: () => document.querySelector(".overlay:last-child")?.remove() })],
+      footer: [button({ label: "Got it", variant: "primary", onClick: () => modal.close() })],
     });
     prefs.set({ seenShortcuts: true });
   }
@@ -932,17 +946,19 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
   if (typeof window !== "undefined") {
     let pendingG = false;
     let gTimer = null;
-    window.addEventListener("keydown", (event) => {
+    listen(window, "keydown", (event) => {
+      const key = String(event.key || "").toLowerCase(); // synthetic events can lack a key
+      if (!key) return;
       const target = event.target;
       const typing = target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target?.isContentEditable;
       const meta = event.metaKey || event.ctrlKey;
 
-      if (meta && event.key.toLowerCase() === "k") {
+      if (meta && key === "k") {
         event.preventDefault();
         openPalette();
         return;
       }
-      if (meta && event.key.toLowerCase() === "s") {
+      if (meta && key === "s") {
         if (typing) {
           event.preventDefault();
           window.dispatchEvent(new CustomEvent("rift:save"));
@@ -950,12 +966,12 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         return;
       }
       if (typing) return;
-      if (event.key === "?") {
+      if (key === "?") {
         event.preventDefault();
         openShortcuts();
         return;
       }
-      if (event.key.toLowerCase() === "g") {
+      if (key === "g") {
         if (pendingG) {
           pendingG = false;
           clearTimeout(gTimer);
@@ -970,10 +986,10 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         const current = router.getCurrent();
         const guildId = current?.params?.guildId;
         if (!guildId) return;
-        if (event.key.toLowerCase() === "s") router.navigate(guildPath(guildId, "settings/automod"));
-        else if (event.key.toLowerCase() === "m") router.navigate(guildPath(guildId, "moderation"));
-        else if (event.key.toLowerCase() === "o") router.navigate(guildPath(guildId));
-        else if (event.key.toLowerCase() === "u") router.navigate(guildPath(guildId, "music"));
+        if (key === "s") router.navigate(guildPath(guildId, "settings/automod"));
+        else if (key === "m") router.navigate(guildPath(guildId, "moderation"));
+        else if (key === "o") router.navigate(guildPath(guildId));
+        else if (key === "u") router.navigate(guildPath(guildId, "music"));
         pendingG = false;
         clearTimeout(gTimer);
       }
@@ -987,7 +1003,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     const changed = session.status !== lastStatus;
     lastStatus = session.status;
     if (session.status === "ready") {
-      if (!isDeveloperUserId(session.user?.id) && localStorage.getItem("rift_api_base_owner")) {
+      if (!isDeveloperUserId(session.user?.id) && safeStorageGet("rift_api_base_owner")) {
         clearApiBaseOverride();
         api.setBase(getConfig().apiBase);
       }
@@ -1031,22 +1047,23 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     }
   });
 
-  // Re-render the connection pill independently of route changes.
-  const pillTimer = setInterval(() => {
-    if (!shellEls) return;
+  // The connection pill follows the two stores that own its inputs; no polling.
+  function syncPill() {
+    const pill = shellEls?.connectionPill;
+    if (!pill) return;
     const state = appStore.get().connection;
     const liveStatus = live.statusStore.get().stats;
-    const pill = shellEls.connectionPill;
-    if (!pill) return;
+    const key = `${liveStatus}:${state}`;
+    if (pill.dataset.state === key) return;
     const isLive = liveStatus === "open";
     const down = state === "down" || state === "offline" || liveStatus === "reconnecting" || liveStatus === "closed";
+    pill.dataset.state = key;
     pill.className = cx("connection-pill", isLive ? "is-live" : down ? "is-down" : "");
-    if (pill.dataset.state !== `${liveStatus}:${state}`) {
-      pill.dataset.state = `${liveStatus}:${state}`;
-      clear(pill);
-      pill.append(statusDot(isLive ? "open" : down ? "error" : "connecting"), h("span", null, isLive ? "Live" : state === "offline" ? "Offline" : down ? "Reconnecting" : "Connecting"));
-    }
-  }, 1500);
+    pill.title = `Live socket: ${liveStatus}`;
+    clear(pill);
+    pill.append(statusDot(isLive ? "open" : down ? "error" : "connecting"), h("span", null, isLive ? "Live" : state === "offline" ? "Offline" : down ? "Reconnecting" : "Connecting"));
+  }
+  const unsubscribePill = [appStore.subscribe(() => syncPill()), live.statusStore.subscribe(() => syncPill())];
 
   async function start() {
     if (typeof location !== "undefined" && /access_token=|error=/.test(location.hash)) {
@@ -1064,7 +1081,8 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
   return {
     start,
     stop() {
-      clearInterval(pillTimer);
+      for (const off of unsubscribePill) off?.();
+      for (const off of disposers.splice(0)) off();
       currentCleanup?.();
       currentController?.abort();
       live.dispose();
