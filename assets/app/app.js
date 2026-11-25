@@ -25,28 +25,11 @@ import { createRouter, guildPath } from "./core/router.js";
 import { createStore } from "./core/store.js";
 import { createPreferences } from "./core/prefs.js";
 import { createEndpoints } from "./data/endpoints.js";
-import { SETTINGS_SECTIONS, SETTINGS_GROUPS } from "./data/settings-schema.js";
+import { SETTINGS_NAV, SETTINGS_GROUPS } from "./data/settings-nav.js";
 import { getConfig, buildInviteUrl, isDeveloperUserId, clearApiBaseOverride } from "./config.js";
 import { copyToClipboard, fmtInt, titleCase } from "./core/format.js";
 import { checkLatestBlogPost, showBlogNotification } from "./ui/blog-notify.js";
 
-import * as loginPage from "./pages/login.js";
-import * as guildsPage from "./pages/guilds.js";
-import * as overviewPage from "./pages/overview.js";
-import * as settingsPage from "./pages/settings.js";
-import * as moderationPage from "./pages/moderation.js";
-import * as musicPage from "./pages/music.js";
-import * as lastfmPage from "./pages/lastfm.js";
-import * as stocksPage from "./pages/stocks.js";
-import * as voicePage from "./pages/voice.js";
-import * as verificationPage from "./pages/verification.js";
-import * as analyticsPage from "./pages/analytics.js";
-import * as mePage from "./pages/me.js";
-import * as statusPage from "./pages/status.js";
-import * as verifyPage from "./pages/verify.js";
-import * as appealsPage from "./pages/appeals.js";
-import * as bugReportPage from "./pages/bugreport.js";
-import * as notFoundPage from "./pages/notfound.js";
 
 const PUBLIC_ROUTES = new Set(["/login", "/verify", "/appeals", "/bugreport"]);
 
@@ -64,7 +47,7 @@ export const NAV_MAIN = [
 export function settingsNav() {
   return SETTINGS_GROUPS.map((group) => ({
     label: group.label,
-    items: SETTINGS_SECTIONS.filter((section) => section.group === group.id).map((section) => ({
+    items: SETTINGS_NAV.filter((section) => section.group === group.id).map((section) => ({
       path: `settings/${section.key}`,
       label: section.title,
       icon: section.icon,
@@ -72,26 +55,59 @@ export function settingsNav() {
   }));
 }
 
+// Pages load on demand: first paint only needs the shell, not 480 KB of every page.
+const PAGE_LOADERS = {
+  login: () => import("./pages/login.js"),
+  verify: () => import("./pages/verify.js"),
+  appeals: () => import("./pages/appeals.js"),
+  bugreport: () => import("./pages/bugreport.js"),
+  guilds: () => import("./pages/guilds.js"),
+  overview: () => import("./pages/overview.js"),
+  analytics: () => import("./pages/analytics.js"),
+  moderation: () => import("./pages/moderation.js"),
+  music: () => import("./pages/music.js"),
+  lastfm: () => import("./pages/lastfm.js"),
+  stocks: () => import("./pages/stocks.js"),
+  voice: () => import("./pages/voice.js"),
+  verification: () => import("./pages/verification.js"),
+  settings: () => import("./pages/settings.js"),
+  me: () => import("./pages/me.js"),
+  status: () => import("./pages/status.js"),
+  notfound: () => import("./pages/notfound.js"),
+};
+const pageCache = new Map();
+export function loadPage(name) {
+  let entry = pageCache.get(name);
+  if (!entry) {
+    entry = (PAGE_LOADERS[name] || PAGE_LOADERS.notfound)().catch((err) => {
+      pageCache.delete(name); // a failed (offline) load must be retryable
+      throw err;
+    });
+    pageCache.set(name, entry);
+  }
+  return entry;
+}
+
 const ROUTES = [
-  { path: "/login", page: loginPage, public: true, title: "Sign in" },
-  { path: "/verify", page: verifyPage, public: true, title: "Verify" },
-  { path: "/appeals", page: appealsPage, public: true, title: "Blacklist appeal" },
-  { path: "/appeals/thread/:token", page: appealsPage, public: true, title: "Appeal thread" },
-  { path: "/bugreport", page: bugReportPage, public: true, title: "Report a bug" },
-  { path: "/guilds", page: guildsPage, title: "Your servers" },
-  { path: "/g/:guildId", page: overviewPage, guild: true, title: "Overview" },
-  { path: "/g/:guildId/analytics", page: analyticsPage, guild: true, title: "Analytics" },
-  { path: "/g/:guildId/moderation", page: moderationPage, guild: true, title: "Moderation" },
-  { path: "/g/:guildId/music", page: musicPage, guild: true, title: "Music" },
-  { path: "/g/:guildId/lastfm", page: lastfmPage, guild: true, title: "Last.fm" },
-  { path: "/g/:guildId/stocks", page: stocksPage, guild: true, title: "Stocks" },
-  { path: "/g/:guildId/voice-call", page: voicePage, guild: true, title: "Voice call" },
-  { path: "/g/:guildId/verification-activity", page: verificationPage, guild: true, title: "Verification activity" },
-  { path: "/g/:guildId/settings", page: settingsPage, guild: true, title: "Settings" },
-  { path: "/g/:guildId/settings/:section", page: settingsPage, guild: true, title: "Settings" },
-  { path: "/me", page: mePage, title: "Account & preferences" },
-  { path: "/status", page: statusPage, title: "Diagnostics", developer: true },
-  { path: "/diagnostics", page: statusPage, title: "Diagnostics", developer: true },
+  { path: "/login", page: "login", public: true, title: "Sign in" },
+  { path: "/verify", page: "verify", public: true, title: "Verify" },
+  { path: "/appeals", page: "appeals", public: true, title: "Blacklist appeal" },
+  { path: "/appeals/thread/:token", page: "appeals", public: true, title: "Appeal thread" },
+  { path: "/bugreport", page: "bugreport", public: true, title: "Report a bug" },
+  { path: "/guilds", page: "guilds", title: "Your servers" },
+  { path: "/g/:guildId", page: "overview", guild: true, title: "Overview" },
+  { path: "/g/:guildId/analytics", page: "analytics", guild: true, title: "Analytics" },
+  { path: "/g/:guildId/moderation", page: "moderation", guild: true, title: "Moderation" },
+  { path: "/g/:guildId/music", page: "music", guild: true, title: "Music" },
+  { path: "/g/:guildId/lastfm", page: "lastfm", guild: true, title: "Last.fm" },
+  { path: "/g/:guildId/stocks", page: "stocks", guild: true, title: "Stocks" },
+  { path: "/g/:guildId/voice-call", page: "voice", guild: true, title: "Voice call" },
+  { path: "/g/:guildId/verification-activity", page: "verification", guild: true, title: "Verification activity" },
+  { path: "/g/:guildId/settings", page: "settings", guild: true, title: "Settings" },
+  { path: "/g/:guildId/settings/:section", page: "settings", guild: true, title: "Settings" },
+  { path: "/me", page: "me", title: "Account & preferences" },
+  { path: "/status", page: "status", title: "Diagnostics", developer: true },
+  { path: "/diagnostics", page: "status", title: "Diagnostics", developer: true },
 ];
 
 export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverride } = {}) {
@@ -542,7 +558,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         return;
       }
       if (session.status !== "ready") {
-        await loginPage.mountPage({
+        await (await loadPage("login")).mountPage({
           root,
           ctx,
           auth,
@@ -559,7 +575,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       await loadAccess();
       if (appStore.get().lastRoute !== ctx.fullPath) return;
       if (standing.blocked) {
-        const cleanup = await appealsPage.mountPage({
+        const cleanup = await (await loadPage("appeals")).mountPage({
           root, ctx, auth, config, router, endpoints, api, prefs, live, store: appStore,
           diagnosticsReport, toast, confirm: confirmDialog, mode: "blocked", recheckStanding,
         });
@@ -574,7 +590,8 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
     }
 
     if (isPublic) {
-      const page = route?.page || notFoundPage;
+      const page = await loadPage(route?.page || "notfound");
+      if (appStore.get().lastRoute !== ctx.fullPath) return;
       const cleanup = await page.mountPage({
         root,
         ctx,
@@ -590,7 +607,12 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
         toast,
         confirm: confirmDialog,
       });
-      currentCleanup = typeof cleanup === "function" ? cleanup : cleanup?.dispose;
+      const dispose = typeof cleanup === "function" ? cleanup : cleanup?.dispose;
+      if (appStore.get().lastRoute !== ctx.fullPath) {
+        try { dispose?.(); } catch (err) { console.error("page cleanup failed", err); }
+        return;
+      }
+      currentCleanup = dispose;
       document.title = `${route?.title || "Rift"} · ${config.siteName}`;
       return;
     }
@@ -661,9 +683,10 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       },
     };
 
-    const page = route?.page || notFoundPage;
     let result;
     try {
+      const page = await loadPage(route?.page || "notfound");
+      if (appStore.get().lastRoute !== ctx.fullPath) return;
       result = await page.mountPage(pageCtx);
     } catch (err) {
       if (err?.name === "AbortError") return;
@@ -678,7 +701,13 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       );
       return;
     }
-    currentCleanup = typeof result === "function" ? result : result?.dispose || null;
+    const dispose = typeof result === "function" ? result : result?.dispose || null;
+    if (appStore.get().lastRoute !== ctx.fullPath) {
+      // Navigated away while this page was mounting: tear it down, don't adopt it.
+      try { dispose?.(); } catch (err) { console.error("page cleanup failed", err); }
+      return;
+    }
+    currentCleanup = dispose;
     document.title = `${route?.title || "Rift"} · ${guild?.name || config.siteName}`;
     const target = scrollPositions.get(ctx.fullPath);
     if (target) requestAnimationFrame(() => window.scrollTo(0, target));
@@ -736,7 +765,7 @@ export function createApp({ root, fetchImpl, WebSocketImpl, config: configOverri
       for (const item of NAV_MAIN) {
         items.push({ group: "Go to", label: item.label, icon: item.icon, run: () => router.navigate(guildPath(guild.id, item.path)) });
       }
-      for (const section of SETTINGS_SECTIONS) {
+      for (const section of SETTINGS_NAV) {
         items.push({ group: `Settings · ${titleCase(section.group)}`, label: section.title, icon: section.icon, sub: section.key, run: () => router.navigate(guildPath(guild.id, `settings/${section.key}`)) });
       }
     }
