@@ -40,6 +40,7 @@ export const NAV_MAIN = [
   { path: "music", label: "Music", icon: "music" },
   { path: "lastfm", label: "Last.fm", icon: "activity" },
   { path: "stocks", label: "Stocks", icon: "coins" },
+  { path: "commands", label: "Commands", icon: "terminal" },
   { path: "voice-call", label: "Voice call", icon: "phone" },
   { path: "verification-activity", label: "Verification", icon: "user-check" },
 ];
@@ -68,6 +69,7 @@ const PAGE_LOADERS = {
   music: () => import("./pages/music.js"),
   lastfm: () => import("./pages/lastfm.js"),
   stocks: () => import("./pages/stocks.js"),
+  commands: () => import("./pages/commands.js"),
   voice: () => import("./pages/voice.js"),
   verification: () => import("./pages/verification.js"),
   settings: () => import("./pages/settings.js"),
@@ -101,6 +103,7 @@ const ROUTES = [
   { path: "/g/:guildId/music", page: "music", guild: true, title: "Music" },
   { path: "/g/:guildId/lastfm", page: "lastfm", guild: true, title: "Last.fm" },
   { path: "/g/:guildId/stocks", page: "stocks", guild: true, title: "Stocks" },
+  { path: "/g/:guildId/commands", page: "commands", guild: true, title: "Commands" },
   { path: "/g/:guildId/voice-call", page: "voice", guild: true, title: "Voice call" },
   { path: "/g/:guildId/verification-activity", page: "verification", guild: true, title: "Verification activity" },
   { path: "/g/:guildId/settings", page: "settings", guild: true, title: "Settings" },
