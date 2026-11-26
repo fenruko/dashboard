@@ -62,6 +62,9 @@ export function createEndpoints(api) {
     autoresponderUpdate: (guildId, trigger, payload) => api.put(`/guild/${enc(guildId)}/autoresponders/${enc(trigger)}`, payload, { retries: 0 }),
     autoresponderDelete: (guildId, trigger) => api.del(`/guild/${enc(guildId)}/autoresponders/${enc(trigger)}`, { retries: 0 }),
 
+    /* ---- command reference (public, cached by the bot) ---- */
+    publicCommands: (options = {}) => api.get("/public/commands", { cacheTtl: 300_000, ...options }),
+
     /* ---- moderation ---- */
     modStats: (guildId) => api.get(`/mod/stats/${enc(guildId)}`, { cacheTtl: 15_000 }),
     modLogs: (guildId, params = {}) => api.get(`/mod/logs/${enc(guildId)}`, { params }),

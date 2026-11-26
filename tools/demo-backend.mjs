@@ -534,6 +534,25 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
     }
     if (route === "/demo/guilds") return reply(200, DEMO_GUILDS);
 
+    if (route === "/public/commands") {
+      const cmd = (name, description, extra = {}) => ({ name, path: name, type: "command", description, kinds: ["prefix", "slash"], aliases: [], usage: name, parameters: [], permissions: [], subcommands: [], ...extra });
+      return reply(200, {
+        schema_version: 1,
+        generated_at: new Date().toISOString(),
+        bot: { name: "Rift", default_prefix: "!" },
+        stats: { commands: 6, categories: 3, slash: 6, prefix: 6, hybrid: 6 },
+        categories: [
+          { id: "moderation", name: "Moderation", description: "Bans, kicks and protection.", count: 3, commands: [
+            cmd("ban", "Ban a member from the server.", { usage: "ban <member> [reason]", permissions: ["ban_members"], aliases: ["b"] }),
+            cmd("kick", "Kick a member.", { usage: "kick <member> [reason]", permissions: ["kick_members"] }),
+            cmd("warn", "Warn a member.", { type: "group", usage: "warn <member> <reason>", subcommands: [cmd("warn list", "List a member's warnings.", { path: "warn list", usage: "warn list <member>" })] }),
+          ] },
+          { id: "music", name: "Music", description: "Play music in voice.", count: 2, commands: [cmd("play", "Play a song or add it to the queue.", { usage: "play <query>" }), cmd("skip", "Skip the current song.")] },
+          { id: "fun", name: "Fun", description: "Games and jokes.", count: 1, commands: [cmd("<img src=x onerror=alert(1)>", "XSS probe: must render as text.", { path: "<img src=x onerror=alert(1)>" })] },
+        ],
+      });
+    }
+
     if (route === "/stats") {
       const stats = {
         guilds: GUILDS.length, users: GUILDS.reduce((s, g) => s + g.memberCount, 0), online: GUILDS.reduce((s, g) => s + g.onlineCount, 0),

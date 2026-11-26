@@ -1337,7 +1337,8 @@ function tickLiveTimes() {
 
 export function relativeTime(value) {
   const date = new Date(typeof value === "number" && value < 1e12 ? value * 1000 : value);
-  const time = h("time", { datetime: date.toISOString(), title: date.toLocaleString() });
+  const valid = !Number.isNaN(date.getTime());
+  const time = h("time", valid ? { datetime: date.toISOString(), title: date.toLocaleString() } : {});
   time._relativeValue = value;
   time.textContent = fmtRelative(value);
   liveTimes.add(time);
