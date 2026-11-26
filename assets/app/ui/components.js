@@ -489,6 +489,157 @@ export function colorInput({ value = "", onChange, id, disabled } = {}) {
   );
 }
 
+/** Multi-select with type-ahead for a server's roles.
+ *  `roles` is [{ id, name }] from the guild info; `values` is a list of role ids.
+ *  Ids that no longer match a role (deleted) stay visible as "ID …" so they can
+ *  still be removed. When the role list could not be loaded, a pasted numeric id
+ *  is accepted as a fallback. */
+export function roleMultiSelect({ roles = [], values = [], onChange, placeholder = "Search roles…" } = {}) {
+  const selected = [...new Set(values.map(String))];
+  const byId = new Map(roles.map((role) => [String(role.id), role]));
+  let active = 0;
+  let matches = [];
+
+  const wrap = h("div", { class: "tag-editor role-select" });
+  const menu = h("div", { class: "suggest-menu", role: "listbox", "aria-label": "Matching roles" });
+  const box = h("div", { class: "suggest-box" }, wrap, menu);
+
+  const input = h("input", {
+    class: "input tag-editor-input",
+    placeholder,
+    "aria-label": placeholder,
+    role: "combobox",
+    "aria-expanded": "false",
+    "aria-autocomplete": "list",
+    autocomplete: "off",
+    onInput: () => {
+      active = 0;
+      renderMenu();
+    },
+    onFocus: () => renderMenu(),
+    onBlur: () => closeMenu(),
+    onKeydown: (event) => {
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        if (!matches.length) return renderMenu();
+        active = (active + (event.key === "ArrowDown" ? 1 : -1) + matches.length) % matches.length;
+        paintActive();
+      } else if (event.key === "Enter" || event.key === ",") {
+        event.preventDefault();
+        const typed = input.value.trim();
+        if (matches[active]) add(String(matches[active].id));
+        else if (!roles.length && /^\d+$/.test(typed)) add(typed);
+      } else if (event.key === "Escape") {
+        closeMenu();
+      } else if (event.key === "Backspace" && !input.value && selected.length) {
+        selected.pop();
+        renderTags();
+        onChange?.([...selected]);
+      }
+    },
+  });
+
+  function closeMenu() {
+    menu.classList.remove("is-open");
+    input.setAttribute("aria-expanded", "false");
+  }
+
+  function paintActive() {
+    [...menu.children].forEach((child, index) => {
+      const on = index === active;
+      child.classList.toggle("is-active", on);
+      child.setAttribute("aria-selected", on ? "true" : "false");
+      if (on) child.scrollIntoView?.({ block: "nearest" });
+    });
+  }
+
+  function renderMenu() {
+    const term = input.value.trim().toLowerCase().replace(/^@/, "");
+    matches = roles
+      .filter((role) => !selected.includes(String(role.id)))
+      .filter((role) => !term || String(role.name).toLowerCase().includes(term) || String(role.id).includes(term))
+      .slice(0, 50);
+    clear(menu);
+    if (!matches.length) {
+      const text = !roles.length
+        ? "Roles could not be loaded — paste a role ID and press Enter."
+        : term
+          ? "No roles match that search."
+          : "Every role is already selected.";
+      append(menu, h("div", { class: "suggest-empty" }, text));
+    } else {
+      matches.forEach((role, index) =>
+        append(
+          menu,
+          h(
+            "div",
+            {
+              class: cx("suggest-item", index === active && "is-active"),
+              role: "option",
+              "aria-selected": index === active ? "true" : "false",
+              // mousedown (not click) so the input keeps focus and doesn't blur-close first
+              onMousedown: (event) => {
+                event.preventDefault();
+                add(String(role.id));
+              },
+            },
+            h("span", { class: "suggest-label" }, `@${role.name}`),
+            h("span", { class: "suggest-sub" }, String(role.id))
+          )
+        )
+      );
+    }
+    menu.classList.add("is-open");
+    input.setAttribute("aria-expanded", "true");
+  }
+
+  function add(id) {
+    if (!id || selected.includes(id)) return;
+    selected.push(id);
+    input.value = "";
+    active = 0;
+    renderTags();
+    onChange?.([...selected]);
+    renderMenu();
+  }
+
+  function renderTags() {
+    clear(wrap);
+    if (!selected.length) append(wrap, h("span", { class: "tag-editor-empty" }, "No roles selected."));
+    for (const id of selected) {
+      const role = byId.get(id);
+      append(
+        wrap,
+        h(
+          "span",
+          { class: cx("tag", !role && "tag--missing"), title: role ? id : "This role no longer exists in the server" },
+          h("span", null, role ? `@${role.name}` : `ID ${id}`),
+          h(
+            "button",
+            {
+              type: "button",
+              class: "tag-remove",
+              "aria-label": `Remove ${role ? role.name : id}`,
+              onClick: () => {
+                const index = selected.indexOf(id);
+                if (index >= 0) selected.splice(index, 1);
+                renderTags();
+                onChange?.([...selected]);
+                if (menu.classList.contains("is-open")) renderMenu();
+              },
+            },
+            icon("x", { size: 11 })
+          )
+        )
+      );
+    }
+    append(wrap, input);
+  }
+
+  renderTags();
+  return box;
+}
+
 export function tagListEditor({ values = [], onChange, placeholder = "Add an item and press Enter", validate, typeLabel = "items" } = {}) {
   const tags = [...values];
   const wrap = h("div", { class: "tag-editor" });

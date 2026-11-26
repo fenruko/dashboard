@@ -86,7 +86,7 @@ test("strict setters receive every curated field, not just the edited one", () =
   assert.equal(payload.password, "hunter2!");
   assert.equal(payload.password_hash, undefined);
   assert.equal(payload.password_configured, undefined);
-  assert.deepEqual(payload.roles_to_remove, [300000000000000108]);
+  assert.deepEqual(payload.roles_to_remove, ["300000000000000108"], "ids stay strings (snowflakes exceed 2^53)");
   assert.equal(payload.channel_id, undefined, "pinned channel is not sent back");
 });
 

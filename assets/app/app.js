@@ -40,6 +40,7 @@ import * as lastfmPage from "./pages/lastfm.js";
 import * as stocksPage from "./pages/stocks.js";
 import * as voicePage from "./pages/voice.js";
 import * as verificationPage from "./pages/verification.js";
+import * as channelsPage from "./pages/channels.js";
 import * as analyticsPage from "./pages/analytics.js";
 import * as mePage from "./pages/me.js";
 import * as statusPage from "./pages/status.js";
@@ -58,6 +59,7 @@ export const NAV_MAIN = [
   { path: "lastfm", label: "Last.fm", icon: "activity" },
   { path: "stocks", label: "Stocks", icon: "coins" },
   { path: "voice-call", label: "Voice call", icon: "phone" },
+  { path: "channels", label: "Channels", icon: "hash" },
   { path: "verification-activity", label: "Verification", icon: "user-check" },
 ];
 
@@ -86,6 +88,7 @@ const ROUTES = [
   { path: "/g/:guildId/lastfm", page: lastfmPage, guild: true, title: "Last.fm" },
   { path: "/g/:guildId/stocks", page: stocksPage, guild: true, title: "Stocks" },
   { path: "/g/:guildId/voice-call", page: voicePage, guild: true, title: "Voice call" },
+  { path: "/g/:guildId/channels", page: channelsPage, guild: true, title: "Channels" },
   { path: "/g/:guildId/verification-activity", page: verificationPage, guild: true, title: "Verification activity" },
   { path: "/g/:guildId/settings", page: settingsPage, guild: true, title: "Settings" },
   { path: "/g/:guildId/settings/:section", page: settingsPage, guild: true, title: "Settings" },

@@ -166,7 +166,7 @@ export async function mountPage(ctx) {
           "div",
           { class: "row", style: "gap:6px;flex-wrap:wrap" },
           enabled == null ? badge({ label: "Not configured", tone: "neutral" }) : badge({ label: enabled ? "Enabled" : "Disabled", tone: enabled ? "success" : "neutral", dot: true }),
-          badge({ label: type === "password" ? "Password" : type === "button" ? "Button" : String(type), tone: "accent" }),
+          badge({ label: type === "password" ? "Password" : type === "button" ? "Button" : type === "web" ? "Web (DM link)" : String(type), tone: "accent" }),
           data.password_configured ? badge({ label: "Password set", tone: "violet" }) : null
         ),
         keyValueGrid(

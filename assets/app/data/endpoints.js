@@ -21,6 +21,17 @@ export function createEndpoints(api) {
 
     /* ---- guild ---- */
     guildInfo: (guildId) => api.get(`/guild/${enc(guildId)}/info`, { cacheTtl: 30_000 }),
+    /* ---- channel manager ---- */
+    channels: (guildId) => api.get(`/guild/${enc(guildId)}/channels`, { retries: 1 }),
+    channelCreate: (guildId, payload) => api.post(`/guild/${enc(guildId)}/channels`, payload, { retries: 0 }),
+    channelEdit: (guildId, channelId, payload) => api.patch(`/guild/${enc(guildId)}/channels/${enc(channelId)}`, payload, { retries: 0 }),
+    channelDelete: (guildId, channelId) => api.del(`/guild/${enc(guildId)}/channels/${enc(channelId)}`, { retries: 0 }),
+    channelsReorder: (guildId, items) => api.post(`/guild/${enc(guildId)}/channels/reorder`, { items }, { retries: 0 }),
+    channelOverwriteSet: (guildId, channelId, targetId, payload) =>
+      api.put(`/guild/${enc(guildId)}/channels/${enc(channelId)}/overwrites/${enc(targetId)}`, payload, { retries: 0 }),
+    channelOverwriteDelete: (guildId, channelId, targetId) =>
+      api.del(`/guild/${enc(guildId)}/channels/${enc(channelId)}/overwrites/${enc(targetId)}`, { retries: 0 }),
+
     analytics: (guildId) => api.get(`/analytics/${enc(guildId)}`, { cacheTtl: 30_000 }),
 
     /* ---- settings ---- */

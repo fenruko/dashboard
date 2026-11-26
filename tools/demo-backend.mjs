@@ -62,6 +62,37 @@ export const ROLES = [
   { id: "300000000000000108", name: "Level 10", color: "#fbbf24" },
 ];
 
+
+const DEMO_CHANNEL_PERMISSIONS = [
+  "view_channel", "manage_channels", "manage_permissions", "manage_webhooks", "create_instant_invite", "send_messages",
+  "send_messages_in_threads", "create_public_threads", "create_private_threads", "embed_links", "attach_files", "add_reactions",
+  "use_external_emojis", "use_external_stickers", "mention_everyone", "manage_messages", "manage_threads", "read_message_history",
+  "send_tts_messages", "use_application_commands", "connect", "speak", "stream", "use_voice_activation", "priority_speaker",
+  "mute_members", "deafen_members", "move_members",
+];
+const demoChannelStores = new Map();
+function getDemoChannels(guildId) {
+  if (!demoChannelStores.has(guildId)) {
+    const parents = { "200000000000000114": "200000000000000113" };
+    const store = CHANNELS.map((channel, index) => ({
+      id: channel.id, name: channel.name, type: channel.type, position: index, parent_id: parents[channel.id] || null, synced: false,
+      overwrites: channel.id === "200000000000000104" ? [{ id: "300000000000000103", type: "role", name: "Moderator", allow: ["view_channel", "send_messages"], deny: [] }] : [],
+      ...(channel.type === "text" ? { topic: "", nsfw: false, slowmode: 0 } : {}),
+      ...(channel.type === "voice" ? { bitrate: 64000, user_limit: 0 } : {}),
+    }));
+    demoChannelStores.set(guildId, store);
+  }
+  return demoChannelStores.get(guildId);
+}
+function demoChannelSnapshot(guildId, store) {
+  return {
+    guild_id: guildId,
+    channels: json(store),
+    roles: ROLES.map((role, index) => ({ id: role.id, name: role.name, position: ROLES.length - index, color: role.color })),
+    permissions: DEMO_CHANNEL_PERMISSIONS,
+  };
+}
+
 const MEMBER_SEED = [
   ["900000000000000001", "Rift Demo", "rift_demo", false, true],
   ["900000000000000002", "Nova", "nova.exe", false, false],
@@ -529,6 +560,77 @@ export function createDemoBackend({ latency = 0, seed = 42 } = {}) {
       const guild = GUILDS.find((entry) => entry.id === infoMatch[1]);
       if (!guild) return reply(404, { error: "Guild not found" });
       return reply(200, { id: guild.id, name: guild.name, icon: null, member_count: guild.memberCount, prefix: getGuildSettings(guild.id).prefix?.value || "!", channels: CHANNELS, roles: ROLES });
+    }
+    const channelsMatch = /^\/guild\/(\d+)\/channels(?:\/(reorder|\d+)(?:\/overwrites\/(\d+))?)?$/.exec(route);
+    if (channelsMatch) {
+      if (!auth) return unauthorized();
+      const [, guildId, sub, targetId] = channelsMatch;
+      if (!GUILDS.some((guild) => guild.id === guildId)) return reply(404, { error: "Guild not found" });
+      const store = getDemoChannels(guildId);
+      const bad = (message, status = 400) => reply(status, { error: message });
+      if (!sub) {
+        if (method === "GET") return reply(200, demoChannelSnapshot(guildId, store));
+        if (method === "POST") {
+          const name = String(body?.name || "").trim().slice(0, 100);
+          if (!name) return bad("Name is required");
+          const type = ["text", "voice", "forum", "stage_voice", "category"].includes(body?.type) ? body.type : "text";
+          const parent = type === "category" ? null : body?.parent_id ? String(body.parent_id) : null;
+          if (parent && !store.some((entry) => entry.id === parent && entry.type === "category")) return bad("Category not found");
+          const created = { id: String(300000000000000900n + BigInt(store.length)), name, type, position: store.length, parent_id: parent, synced: false, overwrites: [] };
+          store.push(created);
+          return reply(200, { channel: created });
+        }
+      }
+      if (sub === "reorder" && method === "POST") {
+        const items = Array.isArray(body?.items) ? body.items : null;
+        if (!items?.length) return bad("items must be a list of 1-500 entries");
+        for (const item of items) {
+          const entry = store.find((channel) => channel.id === String(item.id));
+          if (!entry) return bad("Unknown or duplicate channel in reorder list");
+          if (entry.type === "category" && item.parent_id) return bad("Categories cannot be nested");
+        }
+        for (const item of items) {
+          const entry = store.find((channel) => channel.id === String(item.id));
+          entry.position = Number(item.position);
+          if (entry.type !== "category") entry.parent_id = item.parent_id ? String(item.parent_id) : null;
+        }
+        return reply(200, { ok: true });
+      }
+      const channel = sub && sub !== "reorder" ? store.find((entry) => entry.id === sub) : null;
+      if (sub && sub !== "reorder" && !channel) return bad("Channel not found", 404);
+      if (channel && !targetId) {
+        if (method === "DELETE") {
+          store.splice(store.indexOf(channel), 1);
+          for (const entry of store) if (entry.parent_id === channel.id) entry.parent_id = null;
+          return reply(200, { ok: true });
+        }
+        if (method === "PATCH") {
+          const next = {};
+          if (body?.name !== undefined) next.name = String(body.name).trim().slice(0, 100);
+          if (next.name === "") return bad("Name cannot be empty");
+          for (const key of ["topic", "nsfw", "slowmode", "user_limit", "bitrate"]) if (body?.[key] !== undefined && key in channel) next[key] = body[key];
+          if (!Object.keys(next).length) return bad("Nothing to change");
+          Object.assign(channel, next);
+          return reply(200, { channel });
+        }
+      }
+      if (channel && targetId) {
+        if (method === "PUT") {
+          const role = ROLES.find((entry) => entry.id === targetId);
+          if (!role) return bad("Role or member not found", 404);
+          const allow = (body?.allow || []).map(String);
+          const deny = (body?.deny || []).map(String);
+          if (allow.some((name) => deny.includes(name))) return bad("A permission cannot be both allowed and denied");
+          channel.overwrites = (channel.overwrites || []).filter((entry) => entry.id !== targetId);
+          if (allow.length || deny.length) channel.overwrites.push({ id: targetId, type: "role", name: role.name, allow, deny });
+          return reply(200, { channel });
+        }
+        if (method === "DELETE") {
+          channel.overwrites = (channel.overwrites || []).filter((entry) => entry.id !== targetId);
+          return reply(200, { channel });
+        }
+      }
+      return bad("Unsupported channel request", 405);
     }
     const analyticsMatch = /^\/analytics\/(\d+)$/.exec(route);
     if (analyticsMatch) {
