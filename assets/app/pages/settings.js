@@ -36,6 +36,7 @@ import {
   skeleton,
   spinner,
   switchControl,
+  roleMultiSelect,
   tagListEditor,
   textInput,
   textareaInput,
@@ -131,6 +132,7 @@ export async function mountPage(ctx) {
       case "number":
         return "";
       case "tags":
+      case "roles":
         return [];
       case "socials":
         return [];
@@ -285,6 +287,14 @@ export async function mountPage(ctx) {
       case "channel":
       case "role":
         control = pickerControl({ ...fieldDef, type: fieldDef.type }, { type: fieldDef.type, onChange: commit });
+        break;
+      case "roles":
+        control = roleMultiSelect({
+          roles: guildInfo?.roles || [],
+          values: Array.isArray(values[key]) ? values[key] : [],
+          onChange: commit,
+          placeholder: fieldDef.placeholder || "Search this server's roles…",
+        });
         break;
       case "tags":
         control = tagListEditor({

@@ -974,5 +974,54 @@
   "methods": [
    "DELETE"
   ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/channels",
+  "methods": [
+   "GET"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/channels",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/channels/reorder",
+  "methods": [
+   "POST"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/channels/<int:channel_id>",
+  "methods": [
+   "PATCH"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/channels/<int:channel_id>",
+  "methods": [
+   "DELETE"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/channels/<int:channel_id>/overwrites/<int:target_id>",
+  "methods": [
+   "PUT"
+  ]
+ },
+ {
+  "kind": "route",
+  "path": "/api/guild/<int:guild_id>/channels/<int:channel_id>/overwrites/<int:target_id>",
+  "methods": [
+   "DELETE"
+  ]
  }
 ]

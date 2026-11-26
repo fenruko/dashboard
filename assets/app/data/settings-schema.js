@@ -121,9 +121,18 @@ const KEY_META = {
   thank_you_channel_id: { label: "Thank-you channel", type: "channel" },
   delay: { label: "Delay (seconds)", type: "number", min: 0 },
   events: { label: "Events", type: "tags", help: `Suggested: ${LOG_EVENTS.slice(0, 6).join(", ")}…` },
-  type: { label: "Verification type", type: "select", options: [{ value: "button", label: "Button" }, { value: "password", label: "Password" }] },
+  type: {
+    label: "Verification type",
+    type: "select",
+    options: [
+      { value: "button", label: "Button — one click" },
+      { value: "password", label: "Password — members type a password" },
+      { value: "web", label: "Web — secure link sent by DM" },
+    ],
+    help: "Web sends each member a one-time link to verify in the browser; it also records a one-way fingerprint used to catch ban evasion.",
+  },
   password: { label: "Password", type: "password", help: "Only used when the verification type is “password”." },
-  roles_to_remove: { label: "Roles removed on verify", type: "tags", help: "Role IDs. Members lose these when verification succeeds." },
+  roles_to_remove: { label: "Roles removed on verify", type: "roles", help: "Start typing a role name to pick from this server. Members lose these roles when verification succeeds." },
   subscriptions: { label: "Social feeds", type: "socials" },
   value: { label: "Prefix", type: "text", maxLength: 10 },
   items: { label: "Disabled commands", type: "tags", help: "Command names without a prefix, e.g. ban." },
@@ -582,6 +591,7 @@ export function coerceValue(field, value) {
     case "boolean":
       return Boolean(value);
     case "tags":
+    case "roles":
       return Array.isArray(value) ? value.map((v) => String(v).trim()).filter(Boolean) : [];
     case "channel":
     case "role": {
@@ -650,7 +660,9 @@ export function buildSettingsPayload(section, raw, values, touched, extras = [])
     }
     if (out.password === "") delete out.password;
     if (section.key === "verification" && out.roles_to_remove) {
-      out.roles_to_remove = out.roles_to_remove.map(Number).filter(Number.isFinite);
+      // Keep ids as strings: Discord snowflakes exceed 2^53, so Number() would
+      // round them and the bot would remove a different (or no) role.
+      out.roles_to_remove = out.roles_to_remove.map(String).filter((id) => /^\d+$/.test(id));
     }
     if (section.key === "logging" && typeof out.events === "string") {
       out.events = out.events.split(",").map((entry) => entry.trim()).filter(Boolean);
