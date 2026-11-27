@@ -30,24 +30,6 @@ import { getConfig, buildInviteUrl, isDeveloperUserId, clearApiBaseOverride } fr
 import { copyToClipboard, fmtInt, titleCase } from "./core/format.js";
 import { checkLatestBlogPost, showBlogNotification } from "./ui/blog-notify.js";
 
-import * as loginPage from "./pages/login.js";
-import * as guildsPage from "./pages/guilds.js";
-import * as overviewPage from "./pages/overview.js";
-import * as settingsPage from "./pages/settings.js";
-import * as moderationPage from "./pages/moderation.js";
-import * as musicPage from "./pages/music.js";
-import * as lastfmPage from "./pages/lastfm.js";
-import * as stocksPage from "./pages/stocks.js";
-import * as voicePage from "./pages/voice.js";
-import * as verificationPage from "./pages/verification.js";
-import * as channelsPage from "./pages/channels.js";
-import * as analyticsPage from "./pages/analytics.js";
-import * as mePage from "./pages/me.js";
-import * as statusPage from "./pages/status.js";
-import * as verifyPage from "./pages/verify.js";
-import * as appealsPage from "./pages/appeals.js";
-import * as bugReportPage from "./pages/bugreport.js";
-import * as notFoundPage from "./pages/notfound.js";
 
 const PUBLIC_ROUTES = new Set(["/login", "/verify", "/appeals", "/bugreport"]);
 
@@ -90,6 +72,7 @@ const PAGE_LOADERS = {
   stocks: () => import("./pages/stocks.js"),
   commands: () => import("./pages/commands.js"),
   voice: () => import("./pages/voice.js"),
+  channels: () => import("./pages/channels.js"),
   verification: () => import("./pages/verification.js"),
   settings: () => import("./pages/settings.js"),
   me: () => import("./pages/me.js"),
@@ -110,26 +93,6 @@ export function loadPage(name) {
 }
 
 const ROUTES = [
-  { path: "/login", page: loginPage, public: true, title: "Sign in" },
-  { path: "/verify", page: verifyPage, public: true, title: "Verify" },
-  { path: "/appeals", page: appealsPage, public: true, title: "Blacklist appeal" },
-  { path: "/appeals/thread/:token", page: appealsPage, public: true, title: "Appeal thread" },
-  { path: "/bugreport", page: bugReportPage, public: true, title: "Report a bug" },
-  { path: "/guilds", page: guildsPage, title: "Your servers" },
-  { path: "/g/:guildId", page: overviewPage, guild: true, title: "Overview" },
-  { path: "/g/:guildId/analytics", page: analyticsPage, guild: true, title: "Analytics" },
-  { path: "/g/:guildId/moderation", page: moderationPage, guild: true, title: "Moderation" },
-  { path: "/g/:guildId/music", page: musicPage, guild: true, title: "Music" },
-  { path: "/g/:guildId/lastfm", page: lastfmPage, guild: true, title: "Last.fm" },
-  { path: "/g/:guildId/stocks", page: stocksPage, guild: true, title: "Stocks" },
-  { path: "/g/:guildId/voice-call", page: voicePage, guild: true, title: "Voice call" },
-  { path: "/g/:guildId/channels", page: channelsPage, guild: true, title: "Channels" },
-  { path: "/g/:guildId/verification-activity", page: verificationPage, guild: true, title: "Verification activity" },
-  { path: "/g/:guildId/settings", page: settingsPage, guild: true, title: "Settings" },
-  { path: "/g/:guildId/settings/:section", page: settingsPage, guild: true, title: "Settings" },
-  { path: "/me", page: mePage, title: "Account & preferences" },
-  { path: "/status", page: statusPage, title: "Diagnostics", developer: true },
-  { path: "/diagnostics", page: statusPage, title: "Diagnostics", developer: true },
   { path: "/login", page: "login", public: true, title: "Sign in" },
   { path: "/verify", page: "verify", public: true, title: "Verify" },
   { path: "/appeals", page: "appeals", public: true, title: "Blacklist appeal" },
@@ -144,6 +107,7 @@ const ROUTES = [
   { path: "/g/:guildId/stocks", page: "stocks", guild: true, title: "Stocks" },
   { path: "/g/:guildId/commands", page: "commands", guild: true, title: "Commands" },
   { path: "/g/:guildId/voice-call", page: "voice", guild: true, title: "Voice call" },
+  { path: "/g/:guildId/channels", page: "channels", guild: true, title: "Channels" },
   { path: "/g/:guildId/verification-activity", page: "verification", guild: true, title: "Verification activity" },
   { path: "/g/:guildId/settings", page: "settings", guild: true, title: "Settings" },
   { path: "/g/:guildId/settings/:section", page: "settings", guild: true, title: "Settings" },
